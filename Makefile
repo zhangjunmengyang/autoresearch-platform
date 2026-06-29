@@ -1,16 +1,40 @@
 SHELL := /bin/bash
 
-.PHONY: start stop status test openapi verify-release local
+.PHONY: doctor bootstrap backend-deps frontend-deps ensure-deps start stop status test openapi verify-release local
 
 API_PORT ?= 8010
 WEB_PORT ?= 5174
 API_SESSION := autoresearch-api
 WEB_SESSION := autoresearch-web
+export PATH := $(HOME)/.local/bin:$(PATH)
 
 local:
 	@true
 
-start:
+doctor:
+	@bash scripts/dev_doctor.sh
+
+bootstrap: backend-deps frontend-deps
+
+backend-deps:
+	@bash scripts/dev_doctor.sh --deps-only
+	cd backend && uv sync --extra dev
+
+frontend-deps:
+	@bash scripts/dev_doctor.sh --deps-only
+	cd frontend && npm ci
+
+ensure-deps:
+	@if [ ! -d "$(CURDIR)/backend/.venv" ]; then \
+		echo "Backend dependency environment missing; running make backend-deps"; \
+		$(MAKE) backend-deps; \
+	fi
+	@if [ ! -d "$(CURDIR)/frontend/node_modules" ]; then \
+		echo "Frontend dependencies missing; running make frontend-deps"; \
+		$(MAKE) frontend-deps; \
+	fi
+
+start: doctor ensure-deps
 	@mkdir -p logs
 	@if screen -list | grep -q "[.]$(API_SESSION)[[:space:]]"; then \
 		echo "API already running in screen: $(API_SESSION)"; \
@@ -24,6 +48,7 @@ start:
 		screen -dmS $(WEB_SESSION) bash -lc 'cd "$(CURDIR)/frontend" && VITE_API_URL=http://127.0.0.1:$(API_PORT) npm run dev -- --port $(WEB_PORT) > "$(CURDIR)/logs/frontend.log" 2>&1'; \
 		echo "Frontend started in screen: $(WEB_SESSION)"; \
 	fi
+	@bash scripts/wait_for_local_stack.sh $(API_PORT) $(WEB_PORT)
 
 stop:
 	@screen -S $(API_SESSION) -X quit 2>/dev/null || true
@@ -38,11 +63,11 @@ status:
 	@echo
 	@curl -fsS http://127.0.0.1:$(WEB_PORT) >/dev/null && echo "frontend ok" || echo "frontend unavailable"
 
-test:
+test: ensure-deps
 	cd backend && uv run --extra dev python -m pytest
 	cd frontend && npm test
 
-openapi:
+openapi: ensure-deps
 	cd backend && uv run python -c "import json; from autoresearch_platform.main import app; print(json.dumps(app.openapi(), ensure_ascii=False, indent=2))" > ../docs/openapi.json
 	@echo "wrote docs/openapi.json"
 

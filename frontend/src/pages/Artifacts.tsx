@@ -59,9 +59,9 @@ function formatIssueCounts(counts: Record<string, number>) {
 export function ArtifactsPage() {
   const [query, setQuery] = useState('')
   const [sessionId, setSessionId] = useState('')
-  const artifacts = useQuery({
-    queryKey: ['artifacts', query],
-    queryFn: () => getListData<RecordItem>(`/api/v1/artifacts${query ? `?q=${encodeURIComponent(query)}` : ''}`),
+  const results = useQuery({
+    queryKey: ['results', query],
+    queryFn: () => getListData<RecordItem>(`/api/v1/results${query ? `?q=${encodeURIComponent(query)}` : ''}`),
   })
   const audit = useQuery({
     queryKey: ['artifact-audit', query, sessionId],
@@ -77,26 +77,26 @@ export function ArtifactsPage() {
 
   return (
     <div className="grid-two">
-      <Panel title="成果索引">
+      <Panel title="Result 索引">
         <form className="form" onSubmit={(event) => event.preventDefault()}>
           <TextInput label="筛选" value={query} onChange={setQuery} placeholder="地址、标题、摘要、账本或存储位置" />
           <TextInput label="账本标识" value={sessionId} onChange={setSessionId} placeholder="可选：只审计某个账本" />
         </form>
         <div className="record-list compact">
-          {(artifacts.data?.items || []).map((artifact) => (
-            <article className="record-row" key={artifact.id}>
+          {(results.data?.items || []).map((result) => (
+            <article className="record-row" key={result.id}>
               <div>
-                <div className="record-title">{String(artifact.title || artifact.artifact_type || artifact.id)}</div>
-                <div className="record-meta">类型 {String(artifact.artifact_type || '未记录')}</div>
-                <div className="record-meta">账本 {String(artifact.session_id || '未绑定')}</div>
-                <div className="record-meta">地址 {String(artifact.uri || '未填写')}</div>
-                <div className="record-meta">存储 {String(artifact.storage || '外部')} · 哈希 {String(artifact.sha256 || '未填写')}</div>
-                <div className="record-meta">摘要 {String(artifact.summary || '')}</div>
+                <div className="record-title">{String(result.title || result.artifact_type || result.id)}</div>
+                <div className="record-meta">类型 {String(result.artifact_type || '未记录')}</div>
+                <div className="record-meta">账本 {String(result.session_id || '未绑定')}</div>
+                <div className="record-meta">地址 {String(result.uri || '未填写')}</div>
+                <div className="record-meta">存储 {String(result.storage || '外部')} · 哈希 {String(result.sha256 || '未填写')}</div>
+                <div className="record-meta">摘要 {String(result.summary || '')}</div>
               </div>
             </article>
           ))}
         </div>
-        {!artifacts.data?.items.length ? <RecordList items={[]} /> : null}
+        {!results.data?.items.length ? <RecordList items={[]} /> : null}
       </Panel>
       <Panel title="审计状态">
         {auditData ? (
@@ -141,12 +141,12 @@ export function ArtifactsPage() {
       </Panel>
       <Panel title="索引说明">
         <div className="detail-grid">
-          <div><strong>{artifacts.data?.total || 0}</strong><span>匹配数量</span></div>
-          <div><strong>{artifacts.data?.limit || 50}</strong><span>分页大小</span></div>
-          <div><strong>{artifacts.data?.sort || '-created_at'}</strong><span>排序</span></div>
+          <div><strong>{results.data?.total || 0}</strong><span>匹配数量</span></div>
+          <div><strong>{results.data?.limit || 50}</strong><span>分页大小</span></div>
+          <div><strong>{results.data?.sort || '-created_at'}</strong><span>排序</span></div>
         </div>
         <p className="panel-copy">
-          成果引用只保存外部对象的地址、哈希、媒体类型、存储位置和摘要。原始数据、报告全文、媒体、检查点和大型评测输出应留在外部存储。
+          Result 只保存外部对象的地址、哈希、媒体类型、存储位置和摘要。原始数据、报告全文、媒体、检查点和大型评测输出应留在外部存储。
         </p>
       </Panel>
     </div>

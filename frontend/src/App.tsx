@@ -14,6 +14,7 @@ import { ResearchContextPage } from '@/pages/ResearchContext'
 import { ResearchQueuePage } from '@/pages/ResearchQueue'
 import { ResearchReadinessPage } from '@/pages/ResearchReadiness'
 import { ResearchRoundsPage } from '@/pages/ResearchRounds'
+import { ResearchWorkbenchPage } from '@/pages/ResearchWorkbench'
 import { ReviewsPage } from '@/pages/Reviews'
 import { SessionDetailPage, SessionsPage } from '@/pages/Sessions'
 import { SourcesPage } from '@/pages/Sources'
@@ -27,6 +28,7 @@ export function App() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/sources" element={<SourcesPage />} />
         <Route path="/insights" element={<InsightsPage />} />
+        <Route path="/research" element={<ResearchWorkbenchPage />} />
         <Route path="/research/methodology" element={<MethodologyPage />} />
         <Route path="/research-queue" element={<ResearchQueuePage />} />
         <Route path="/research/context" element={<ResearchContextPage />} />

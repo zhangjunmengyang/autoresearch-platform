@@ -9,11 +9,13 @@ const pageConfig = readFileSync(resolve(root, 'lib/page-config.ts'), 'utf8')
 const appShell = readFileSync(resolve(root, 'components/AppShell.tsx'), 'utf8')
 const primitives = readFileSync(resolve(root, 'components/Primitives.tsx'), 'utf8')
 const globals = readFileSync(resolve(root, 'styles/globals.css'), 'utf8')
+const dashboardPage = readFileSync(resolve(root, 'pages/Dashboard.tsx'), 'utf8')
 const experiencesPage = readFileSync(resolve(root, 'pages/Experiences.tsx'), 'utf8')
 const reviewsPage = readFileSync(resolve(root, 'pages/Reviews.tsx'), 'utf8')
 const evidencePage = readFileSync(resolve(root, 'pages/Evidence.tsx'), 'utf8')
 const artifactsPage = readFileSync(resolve(root, 'pages/Artifacts.tsx'), 'utf8')
 const auditPage = readFileSync(resolve(root, 'pages/Audit.tsx'), 'utf8')
+const researchWorkbenchPage = readFileSync(resolve(root, 'pages/ResearchWorkbench.tsx'), 'utf8')
 const researchContextPage = readFileSync(resolve(root, 'pages/ResearchContext.tsx'), 'utf8')
 const researchReadinessPage = readFileSync(resolve(root, 'pages/ResearchReadiness.tsx'), 'utf8')
 const researchRoundsPage = readFileSync(resolve(root, 'pages/ResearchRounds.tsx'), 'utf8')
@@ -31,6 +33,7 @@ for (const route of [
   '/dashboard',
   '/sources',
   '/insights',
+  '/research',
   '/research/methodology',
   '/research-queue',
   '/research/context',
@@ -55,6 +58,7 @@ const allowedNavPaths = new Set([
   '/dashboard',
   '/sources',
   '/insights',
+  '/research',
   '/research/methodology',
   '/research-queue',
   '/research/context',
@@ -77,8 +81,24 @@ for (const navPath of navPaths) {
   assert(allowedNavPaths.has(navPath), `unknown navigation path ${navPath}`)
 }
 
-for (const label of ['总览看板', '资料输入', '洞察与假设', '科研方法论', '研究队列', '研究上下文', '就绪检查', '研究轮次', '研究账本', '过程审计', '证据记录', '成果引用', '评测登记', '审查事件', '决策记录', '长期经验', '能力目录', '系统状态']) {
+for (const label of ['总览看板', 'Idea Pool 想法池', 'Hypothesis 假设', 'Plan / Experiment 计划实验', 'Experiment 账本', 'Review / Decision 复盘决策', 'Lesson 经验', '能力目录', '系统状态']) {
   assert(pageConfig.includes(label), `missing nav label ${label}`)
+}
+
+const researchGroup = pageConfig.match(/title: '研究',[\s\S]*?title: '知识'/)?.[0] || ''
+const researchNavLabels = [...researchGroup.matchAll(/label: '([^']+)'/g)].map((match) => match[1])
+assert.deepEqual(researchNavLabels, ['Plan / Experiment 计划实验', 'Experiment 账本', 'Review / Decision 复盘决策'], 'research navigation should stay compact')
+for (const hiddenResearchLabel of ['科研方法论', '研究队列', '研究上下文', '就绪检查', '研究轮次', '过程审计', '成果引用', '评测登记', '审查事件', '决策记录']) {
+  assert(!researchNavLabels.includes(hiddenResearchLabel), `low-frequency research entry leaked into main nav: ${hiddenResearchLabel}`)
+}
+
+for (const retainedPath of ['/sources', '/insights', '/research/methodology', '/sessions', '/artifacts', '/evidence', '/decisions', '/knowledge/experiences', '/research/context', '/research/readiness', '/research/rounds', '/research/audit', '/benchmarks', '/reviews']) {
+  assert(researchWorkbenchPage.includes(retainedPath), `research workbench should link to ${retainedPath}`)
+}
+
+for (const loopLabel of ['Idea Pool', 'Hypothesis', 'Plan', 'Experiment', 'Result', 'Review', 'Decision', 'Lesson']) {
+  assert(dashboardPage.includes(loopLabel), `dashboard missing loop label ${loopLabel}`)
+  assert(researchWorkbenchPage.includes(loopLabel), `research workbench missing loop label ${loopLabel}`)
 }
 
 const navLabels = [...pageConfig.matchAll(/label: '([^']+)'/g)].map((match) => match[1])
@@ -98,7 +118,7 @@ for (const forbidden of ['/knowledge/graph', '科研图谱', '/api/v1/graph', '/
 
 assert(!pages.includes('Graph.tsx'), 'graph page should not be part of the core workbench')
 
-for (const required of ['Dashboard.tsx', 'Audit.tsx', 'Artifacts.tsx', 'Benchmarks.tsx', 'Decisions.tsx', 'Evidence.tsx', 'Experiences.tsx', 'Methodology.tsx', 'ResearchContext.tsx', 'ResearchReadiness.tsx', 'ResearchRounds.tsx', 'Reviews.tsx']) {
+for (const required of ['Dashboard.tsx', 'Audit.tsx', 'Artifacts.tsx', 'Benchmarks.tsx', 'Decisions.tsx', 'Evidence.tsx', 'Experiences.tsx', 'Methodology.tsx', 'ResearchContext.tsx', 'ResearchReadiness.tsx', 'ResearchRounds.tsx', 'ResearchWorkbench.tsx', 'Reviews.tsx']) {
   assert(pages.includes(required), `missing page ${required}`)
 }
 
@@ -112,6 +132,7 @@ assert(experiencesPage.includes('来源追踪'), 'experience preview does not re
 assert(experiencesPage.includes('治理缺口'), 'experience preview does not render governance gaps')
 assert(experiencesPage.includes('建议动作'), 'experience preview does not render recommended next actions')
 assert(reviewsPage.includes('review.subject'), 'reviews page does not render reviewed subject')
+assert(artifactsPage.includes('/api/v1/results'), 'result page does not query canonical results endpoint')
 assert(artifactsPage.includes('/api/v1/artifacts/audit'), 'artifacts page does not query artifact audit')
 assert(artifactsPage.includes('审计状态'), 'artifacts page does not render artifact audit state')
 assert(artifactsPage.includes('元数据缺口'), 'artifacts page does not render artifact metadata issues')
@@ -157,6 +178,7 @@ assert(researchRoundsPage.includes('工作树'), 'research rounds page does not 
 assert(researchRoundsPage.includes('提交'), 'research rounds page does not render commit references in Chinese')
 assert(researchRoundsPage.includes('roundBranch'), 'research rounds completion does not preserve the round branch reference')
 assert(methodologyPage.includes('/api/v1/research/design/audit'), 'methodology page does not query design audit')
+assert(methodologyPage.includes('/api/v1/plans'), 'methodology page does not query canonical plans endpoint')
 assert(methodologyPage.includes('/api/v1/research/method-templates'), 'methodology page does not query method templates')
 assert(methodologyPage.includes('方法模板'), 'methodology page does not render method templates')
 assert(methodologyPage.includes('复现实验'), 'methodology page does not render reproduction template')

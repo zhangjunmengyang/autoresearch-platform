@@ -45,7 +45,7 @@ const sourceRefTypes = [
   { value: 'evidence_record', label: '证据记录' },
   { value: 'review', label: '审查记录' },
   { value: 'decision', label: '决策记录' },
-  { value: 'source', label: '资料输入' },
+  { value: 'source', label: 'Idea Pool' },
 ]
 
 const gapLabels: Record<string, string> = {

@@ -137,7 +137,14 @@ export function MethodologyPage() {
   const [methodId, setMethodId] = useState('')
   const [oneChange, setOneChange] = useState('')
   const [designQuery, setDesignQuery] = useState('')
+  const [planTitle, setPlanTitle] = useState('')
+  const [planHypothesisId, setPlanHypothesisId] = useState('')
+  const [planObjective, setPlanObjective] = useState('')
+  const [planOneChange, setPlanOneChange] = useState('')
+  const [planValidationMethod, setPlanValidationMethod] = useState('benchmark_comparison')
+  const [planResultRequirements, setPlanResultRequirements] = useState('score_report\nbadcase_summary')
 
+  const plans = useQuery({ queryKey: ['plans'], queryFn: () => getListData<RecordItem>('/api/v1/plans') })
   const programs = useQuery({ queryKey: ['research-programs'], queryFn: () => getListData<RecordItem>('/api/v1/research/programs') })
   const questions = useQuery({ queryKey: ['research-questions'], queryFn: () => getListData<RecordItem>('/api/v1/research/questions') })
   const methods = useQuery({ queryKey: ['method-cards'], queryFn: () => getListData<RecordItem>('/api/v1/research/method-cards') })
@@ -154,6 +161,27 @@ export function MethodologyPage() {
       setProgramTitle('')
       setProgramGoal('')
       queryClient.invalidateQueries({ queryKey: ['research-programs'] })
+    },
+  })
+  const createPlan = useMutation({
+    mutationFn: () => postData('/api/v1/plans', {
+      title: planTitle,
+      hypothesis_id: planHypothesisId || undefined,
+      objective: planObjective,
+      one_change: planOneChange,
+      validation_method: planValidationMethod,
+      controls: ['当前基线'],
+      acceptance_criteria: { measurable_improvement: true },
+      rejection_criteria: { no_traceable_result: true },
+      result_requirements: planResultRequirements.split('\n').map((item) => item.trim()).filter(Boolean),
+    }),
+    onSuccess: () => {
+      setPlanTitle('')
+      setPlanHypothesisId('')
+      setPlanObjective('')
+      setPlanOneChange('')
+      queryClient.invalidateQueries({ queryKey: ['plans'] })
+      queryClient.invalidateQueries({ queryKey: ['protocols'] })
     },
   })
   const createQuestion = useMutation({
@@ -199,6 +227,7 @@ export function MethodologyPage() {
   })
 
   const mutationError = createProgram.error?.message
+    || createPlan.error?.message
     || createQuestion.error?.message
     || createMethod.error?.message
     || createProtocol.error?.message
@@ -214,6 +243,17 @@ export function MethodologyPage() {
 
   return (
     <div className="grid-two">
+      <Panel title="Plan">
+        <form className="form" onSubmit={(event) => { event.preventDefault(); createPlan.mutate() }}>
+          <TextInput label="标题" value={planTitle} onChange={setPlanTitle} placeholder="本轮最小实验计划" />
+          <TextInput label="Hypothesis ID" value={planHypothesisId} onChange={setPlanHypothesisId} placeholder="可选：hypothesis_..." />
+          <TextArea label="目标" value={planObjective} onChange={setPlanObjective} placeholder="要验证的机制、分数或现象" />
+          <TextArea label="唯一变化" value={planOneChange} onChange={setPlanOneChange} placeholder="本轮只改变什么" />
+          <TextInput label="验证方式" value={planValidationMethod} onChange={setPlanValidationMethod} placeholder="benchmark_comparison / ablation / reproduction" />
+          <TextArea label="结果要求" value={planResultRequirements} onChange={setPlanResultRequirements} placeholder="每行一个结果要求" />
+          <Button type="submit" disabled={!planTitle || !planOneChange}>写入 Plan</Button>
+        </form>
+      </Panel>
       <Panel title="方法模板">
         <ErrorMessage message={methodTemplates.error?.message} />
         {methodTemplates.data ? (
@@ -249,7 +289,7 @@ export function MethodologyPage() {
           </div>
         ) : null}
       </Panel>
-      <Panel title="研究计划">
+      <Panel title="高级计划对象">
         <form className="form" onSubmit={(event) => { event.preventDefault(); createProgram.mutate() }}>
           <TextInput label="标题" value={programTitle} onChange={setProgramTitle} placeholder="长期研究方向" />
           <TextArea label="目标" value={programGoal} onChange={setProgramGoal} placeholder="要解决的科学或工程问题" />
@@ -327,7 +367,8 @@ export function MethodologyPage() {
           </div>
         ) : null}
       </Panel>
-      <Panel title="计划列表"><RecordList items={programs.data?.items} /></Panel>
+      <Panel title="Plan 列表"><RecordList items={plans.data?.items} /></Panel>
+      <Panel title="高级计划列表"><RecordList items={programs.data?.items} /></Panel>
       <Panel title="问题列表"><RecordList items={questions.data?.items} /></Panel>
       <Panel title="方法列表"><RecordList items={methods.data?.items} /></Panel>
       <Panel title="协议列表"><RecordList items={protocols.data?.items} /></Panel>

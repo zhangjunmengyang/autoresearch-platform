@@ -12,21 +12,25 @@ Load this first for any formal AutoResearch run.
 1. Call `GET /api/v1/agent/onboarding`.
    - Inspect `state`, `security`, `readiness`, `capability_groups`, `skill.load_order`, `recommended_first_calls` and `recommended_next_actions`.
    - Treat it as a read-only onboarding bundle, not an execution plan.
-2. Call `GET /api/v1/system/security` when you need the latest auth policy.
+2. Call `GET /api/v1/method-loop`.
+   - Use it as the canonical method map: Idea Pool, Hypothesis, Plan, Experiment, Result, Review, Decision, Lesson.
+   - Treat backing collections as implementation details unless a quality gate asks for them.
+3. Call `GET /api/v1/system/security` when you need the latest auth policy.
    - If `auth_required` is true, send the deployment token only in the `Authorization` header.
    - Do not write tokens into sources, events, artifacts, reviews, decisions, experiences, logs or notes.
-3. Call `GET /api/v1/system/readiness` when you need the latest deployment gate.
+4. Call `GET /api/v1/system/readiness` when you need the latest deployment gate.
    - `blocked`: stop and report the platform deployment gap.
    - `degraded`: proceed only for local/dev research and record the limitation.
    - `ready`: formal use is allowed.
-4. Read `/api/v1/openapi.json` before relying on endpoint details. Treat OpenAPI as the route/schema drift checker.
+5. Read `/api/v1/openapi.json` before relying on endpoint details. Treat OpenAPI as the route/schema drift checker.
 
 ## Context Recovery
 
 1. Query durable memory with `POST /api/v1/experiences/query`.
 2. Query `GET /api/v1/research/context?query=...&claim=...`.
-3. Follow returned `risk_flags` and `recommended_next_actions` unless OpenAPI shows the contract changed.
-4. If continuing an existing round, query `GET /api/v1/research/rounds/{round_id}` before doing any new work.
+3. Register missing Idea Pool entries with `POST /api/v1/ideas` when the source is a paper, repo, dataset, benchmark gap, researcher idea, historical failure or runtime observation.
+4. Follow returned `risk_flags` and `recommended_next_actions` unless OpenAPI shows the contract changed.
+5. If continuing an existing round, query `GET /api/v1/research/rounds/{round_id}` before doing any new work.
 
 ## Readiness Gates
 

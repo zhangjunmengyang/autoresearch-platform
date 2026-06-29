@@ -27,6 +27,7 @@ def public_paths(api_prefix: str) -> set[str]:
         "/redoc",
         f"{api_prefix}/openapi.json",
         f"{api_prefix}/agent/onboarding",
+        f"{api_prefix}/method-loop",
         f"{api_prefix}/capabilities",
         f"{api_prefix}/system/status",
         f"{api_prefix}/system/readiness",

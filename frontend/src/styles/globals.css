@@ -427,6 +427,11 @@ textarea {
   font-weight: 700;
 }
 
+.metric-card small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .workflow-strip {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -444,6 +449,34 @@ textarea {
   font-size: 13px;
   font-weight: 700;
   text-align: center;
+}
+
+.link-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.link-card {
+  min-height: 82px;
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 13px;
+  background: #fbfcfd;
+}
+
+.link-card strong {
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.link-card span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .json-preview {
@@ -545,6 +578,7 @@ textarea {
     .capability-grid,
     .dashboard-metrics,
     .workflow-strip,
+    .link-grid,
     .detail-grid {
     grid-template-columns: 1fr;
   }

@@ -2,25 +2,26 @@
 
 AutoResearch Platform 是外部科研 Runtime 的事实源。平台内只实现确定性维护接口和可浏览工作台。
 
-## 能力层
+## 方法论闭环
+
+AutoResearch Platform 的生产主线不是对象管理系统，而是外部 Runtime 的研究闭环事实源:
+
+```text
+Idea Pool -> Hypothesis -> Plan -> Experiment -> Result -> Review -> Decision -> Lesson -> Next Hypothesis
+```
 
 | 层 | 职责 |
 | --- | --- |
-| Sources | 论文、URL、数据集、代码仓库、笔记、artifact 引用、模糊目标和外部 Runtime 输入 |
-| Insights | 从 sources 提炼观点、机制解释、缺口和假设线索 |
-| Research Methodology | 研究计划、研究问题、方法卡和预注册实验协议 |
-| Research Context | 开题和恢复前的只读上下文包，聚合事实、证据、风险和建议下一步 |
-| Research Rounds | 每轮方案、worktree/branch、commit、实验、artifact、证据和决策引用 |
-| Research Intake | 外部 Runtime 或 Agent 提交、领取和启动研究任务 |
-| Session Ledger | 研究事件、实验、artifact、收尾 retrospective |
-| Artifact Registry | 外部成果引用索引、URI/hash/大小/存储/摘要元数据审计 |
-| Benchmarks | benchmark suite 外部 adapter 合同、输入输出、指标、artifact 要求和 Runtime run 结果 |
-| Evidence | 科研主张与支持、反证、不确定、复现或复现失败证据的绑定、聚合概览、覆盖范围、质量缺口和复现建议 |
-| Reviews | 自动 critic、外部 Runtime 或必要人工复核的审查事件与 decision 前质量门 |
-| Decisions | 接受、拒绝、继续、阻塞、替代或归档等证据绑定科研判断 |
-| Runtime Event Ledger | 通用过程事件、外部输入摘要、阻塞原因和执行观察 |
-| Experiences | 长期经验查询与显式 curation |
-| Security And Audit | 可选 Bearer token 边界、公开入口说明、metadata-only API 审计 |
+| Idea Pool | 论文、repo、数据集、benchmark gap、研究员想法、历史失败和外部观察 |
+| Hypothesis | 本轮要验证的研究假设，必须能追溯到 idea 来源 |
+| Plan | 最小研究计划，记录唯一变化、验证方式、接受/拒绝标准和结果要求；不是 workflow DAG |
+| Experiment | 外部 Runtime 的一次执行记录；平台不执行实验、不训练模型、不调度资源 |
+| Result | 分数、日志、图表、论文草稿、badcase 文件等外部 artifact 引用和轻量摘要 |
+| Review | 对 result 的解释、复盘、审查或 artifact-aware review |
+| Decision | `keep`、`discard`、`continue`、`retry`、`blocked`、`archived` 等迭代判断 |
+| Lesson | 显式沉淀的可复用经验，用来指导下一轮 hypothesis 或 plan |
+
+当前 canonical API 优先使用 `GET /api/v1/method-loop`、`POST /api/v1/ideas`、`POST /api/v1/hypotheses`、`POST /api/v1/plans`、`POST /api/v1/results`、`POST /api/v1/reviews`、`POST /api/v1/decisions` 和 `POST /api/v1/experiences/curation/preview|apply`。旧的 sources、protocols、sessions、rounds、artifacts、evidence records、reviews、decisions 和 experiences 仍是底层存储与高级审计映射，不应作为平级主导航暴露。
 
 ## 引用留痕
 

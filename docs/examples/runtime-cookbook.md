@@ -14,7 +14,7 @@
 - 新方案开始时先登记 research round；如果需要改代码或实验配置，外部 Runtime 在自己的环境中创建 worktree/branch，然后只把引用写回平台。
 - 继续已有方案时先读 `/api/v1/research/rounds/{round_id}`，确认追踪包、warnings 和 `unresolved_refs`。
 - 进入实验、审查、决策或经验维护前先读 `/api/v1/research/readiness`，如果返回 `blocked`，先修复缺口。
-- 执行前读取 `/api/v1/research/method-templates`，再登记假设、方法对象和预注册协议，并读取 `/api/v1/research/design/audit` 修复设计缺口。
+- 执行前读取 `/api/v1/method-loop` 和 `/api/v1/research/method-templates`，再登记 Hypothesis 与 Plan；方法对象和预注册协议只在审计需要更细结构时补充。
 - 运行 benchmark 前先读 `/api/v1/benchmarks/audit`，确认 suite 已声明外部适配器、输入、输出、指标和成果要求。
 - 提交多个 benchmark run 后先读 `/api/v1/benchmark-runs/compare`，用只读对比选择最佳 run、发现缺 artifact/provenance 的证据准备缺口。
 - 执行过程写 session event、experiment、artifact reference。
@@ -35,38 +35,22 @@ python3 scripts/validate_agent_onboarding.py --base-url http://127.0.0.1:8010/ap
 
 ## 最小闭环
 
-1. 接入自检: `GET /api/v1/agent/onboarding`
-2. 查平台部署就绪: `GET /api/v1/system/readiness`
-3. 查安全状态: `GET /api/v1/system/security`
-4. 查能力: `GET /api/v1/capabilities`
-5. 查经验: `POST /api/v1/experiences/query`
-6. 恢复上下文: `GET /api/v1/research/context?query=...&claim=...`
-7. 恢复已有轮次: `GET /api/v1/research/rounds/{round_id}`
-8. 就绪检查: `GET /api/v1/research/readiness?query=...&claim=...&round_id=...&stage=before_experiment`
-9. 登记研究轮次: `POST /api/v1/research/rounds`
-10. 写资料: `POST /api/v1/sources`
-11. 写洞察: `POST /api/v1/insights`
-12. 写假设: `POST /api/v1/hypotheses`
-13. 读取方法模板: `GET /api/v1/research/method-templates`
-14. 写研究计划、问题、方法卡和协议
-15. 审计研究设计: `GET /api/v1/research/design/audit`
-16. 创建 intake 并启动 session
-17. 记录事件、实验和 artifact 引用
-18. 审计 benchmark 合同: `GET /api/v1/benchmarks/audit`
-19. 提交 benchmark run
-20. 对比 benchmark runs: `GET /api/v1/benchmark-runs/compare?benchmark_id=...&metric=...`
-21. 审计 artifact 元数据: `GET /api/v1/artifacts/audit?session_id=...`
-22. 回填轮次引用: `PATCH /api/v1/research/rounds/{round_id}`
-23. 校验轮次追踪包: `GET /api/v1/research/rounds/{round_id}`
-24. 决策前就绪检查: `GET /api/v1/research/readiness?stage=before_decision`
-25. 写入 evidence record
-26. 查询 evidence summary，判断是否需要继续收证、复现、补覆盖范围或排查冲突
-27. 提交自动审查
-28. 运行 review audit
-29. 写入 evidence-backed decision
-30. 导出只读审计包: `GET /api/v1/research/audit/export?query=...&claim=...&session_id=...&round_id=...`
-31. 关闭 session
-32. 预检并写入长期经验
+生产接入先按方法论闭环走，不按 endpoint 数量铺开:
+
+```text
+Idea Pool -> Hypothesis -> Plan -> Experiment -> Result -> Review -> Decision -> Lesson
+```
+
+1. **接入自检**: `GET /api/v1/agent/onboarding`、`GET /api/v1/method-loop`、`GET /api/v1/system/readiness`、`GET /api/v1/system/security`。
+2. **Idea Pool**: 用 `POST /api/v1/experiences/query` 和 `GET /api/v1/research/context?query=...&claim=...` 恢复论文、repo、历史失败、研究员想法和旧经验；必要时 `POST /api/v1/ideas`。
+3. **Hypothesis**: 用 `POST /api/v1/hypotheses` 写入本轮要验证的假设，并通过 refs 追溯 idea 来源。
+4. **Plan**: 用 `POST /api/v1/plans` 写入唯一变化、验证方式、接受/拒绝标准和结果要求；用 `GET /api/v1/research/design/audit` 做只读质量门。
+5. **Experiment**: 用 `POST /api/v1/research/sessions`、`POST /api/v1/research/rounds` 和 session events 记录外部 Runtime 的执行，不让平台执行实验。
+6. **Result**: 用 `POST /api/v1/results`、experiment patch、benchmark run 和 artifact endpoints 登记分数、日志、图表、badcase、commit、报告或论文草稿等外部结果引用。
+7. **Review / Decision**: 用 evidence summary、review audit 和 decision endpoints 写入结果解释、质量缺口、`keep/discard/continue/retry/blocked/archived` 判断。
+8. **Lesson**: 用 `POST /api/v1/experiences/curation/preview` 和 `apply` 显式沉淀可复用经验，指导下一轮 hypothesis 或 plan。
+
+当前 API 仍保留 `insights`、`method-cards`、`intake`、`benchmark audit`、`research audit export` 等高级能力。它们是上述闭环的审计和治理支撑，不是新接入 Runtime 必须逐项走完的主路径。
 
 ## 认证与审计
 

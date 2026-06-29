@@ -8,6 +8,9 @@
 ### Agent 接入自检
 GET {{base}}/agent/onboarding
 
+### 方法论闭环
+GET {{base}}/method-loop
+
 ### 能力目录
 GET {{base}}/capabilities
 
@@ -17,8 +20,8 @@ Content-Type: application/json
 
 {"query":"agent memory","limit":5}
 
-### 登记资料输入
-POST {{base}}/sources
+### 登记 Idea Pool
+POST {{base}}/ideas
 Content-Type: application/json
 
 {
@@ -29,17 +32,7 @@ Content-Type: application/json
   "tags": ["agent-memory"]
 }
 
-### 登记洞察
-POST {{base}}/insights
-Content-Type: application/json
-
-{
-  "title": "延迟回忆需要可追溯评测",
-  "body": "长期记忆能力必须使用延迟回忆任务验证。",
-  "source_refs": [{"type":"source","id":"source_demo"}]
-}
-
-### 登记假设
+### 登记 Hypothesis
 POST {{base}}/hypotheses
 Content-Type: application/json
 
@@ -49,55 +42,26 @@ Content-Type: application/json
   "expected_effect": "recall@10 提升",
   "acceptance_criteria": {"recall_delta_gt": 0.05},
   "rejection_criteria": {"latency_delta_gt": 0.2},
-  "insight_refs": ["insight_demo"]
+  "source_refs": [{"type":"source","id":"idea_demo"}]
 }
 
 ### 读取方法模板
 GET {{base}}/research/method-templates
 
-### 登记研究计划
-POST {{base}}/research/programs
+### 登记 Plan
+POST {{base}}/plans
 Content-Type: application/json
 
 {
-  "title": "Agent 记忆研究",
-  "goal": "提高长任务接续和证据回放能力",
-  "domain": "agent-memory",
-  "constraints": ["不改变模型 provider"]
-}
-
-### 登记研究问题
-POST {{base}}/research/questions
-Content-Type: application/json
-
-{
-  "program_id": "program_demo",
-  "question": "周期性回放是否提升延迟回忆",
-  "success_criteria": {"recall_delta_gt": 0.05}
-}
-
-### 登记方法卡
-POST {{base}}/research/method-cards
-Content-Type: application/json
-
-{
-  "name": "延迟回忆评测",
-  "domain": "agent-memory",
-  "failure_modes": ["数据泄漏", "样本过少"],
-  "required_artifacts": ["benchmark_result", "run_log"]
-}
-
-### 登记预注册协议
-POST {{base}}/research/protocols
-Content-Type: application/json
-
-{
-  "question_id": "question_demo",
-  "method_id": "method_demo",
+  "title": "回放延迟回忆评测",
+  "hypothesis_id": "hypothesis_demo",
+  "objective": "验证周期性回放是否提升延迟回忆 recall。",
   "one_change": "加入周期性回放",
+  "validation_method": "benchmark_comparison",
   "controls": ["无回放基线"],
   "acceptance_criteria": {"recall_delta_gt": 0.05},
-  "rejection_criteria": {"latency_delta_gt": 0.2}
+  "rejection_criteria": {"latency_delta_gt": 0.2},
+  "result_requirements": ["benchmark_result", "run_log", "badcase_summary"]
 }
 
 ### 创建研究队列项
@@ -147,18 +111,20 @@ Content-Type: application/json
   "one_change": "加入周期性回放"
 }
 
-### 登记 artifact 引用
-POST {{base}}/research/sessions/session_demo/artifacts
+### 登记 Result
+POST {{base}}/results
 Content-Type: application/json
 
 {
-  "artifact_type": "benchmark_result",
+  "result_type": "benchmark_result",
   "title": "延迟回忆评测结果",
   "uri": "s3://bucket/agent-memory/run-001.json",
   "sha256": "demo-sha256",
   "mime_type": "application/json",
   "storage": "s3",
-  "summary": "外部 Runtime 生成的评测结果引用"
+  "summary": "外部 Runtime 生成的评测结果引用",
+  "metrics": {"recall": 0.72},
+  "source_refs": [{"type":"hypothesis","id":"hypothesis_demo"}]
 }
 
 ### 创建 benchmark suite
@@ -194,7 +160,7 @@ Content-Type: application/json
   "session_id": "session_demo",
   "status": "completed",
   "scores": {"recall": 0.72},
-  "artifact_refs": [{"type":"artifact","id":"artifact_demo"}],
+  "artifact_refs": [{"type":"artifact","id":"result_demo"}],
   "provenance": {"runner": "external-runtime-demo"}
 }
 

@@ -10,14 +10,15 @@ from fastapi import FastAPI
 OPENAPI_DESCRIPTION = """
 AutoResearch Platform 是外部科研 Runtime 的 REST/OpenAPI 事实源。
 
-平台负责保存资料、insight、任务、session ledger、实验、artifact、benchmark run、
-review、通用 Runtime 事件和长期经验。模型调用、benchmark 执行、agent loop、
-训练和评测由外部 Runtime 负责。
+平台负责保存 FARS/Karpathy 风格研究闭环事实:
+Idea Pool -> Hypothesis -> Plan -> Experiment -> Result -> Review -> Decision -> Lesson。
+模型调用、benchmark 执行、agent loop、训练和评测由外部 Runtime 负责。
 """
 
 OPENAPI_TAGS = [
     {"name": "capabilities", "description": "外部 Runtime 能力发现入口。"},
     {"name": "system", "description": "平台只读状态。"},
+    {"name": "method-loop", "description": "FARS/Karpathy 风格 AutoResearch 主闭环入口。"},
     {"name": "sources", "description": "论文、URL、数据集、代码仓库、笔记、artifact 引用和外部 Runtime 输入。"},
     {"name": "insights", "description": "从资料产生的 insight 与 hypothesis。"},
     {"name": "research", "description": "研究任务队列、session ledger、实验、事件、artifact 和收尾。"},
@@ -44,12 +45,31 @@ AGENT_CAPABILITIES: list[dict[str, Any]] = [
         "safety": "只读平台配置和迁移合同，不访问外部 Runtime、不读取 artifact URI、不执行迁移。",
     },
     {
+        "id": "method_loop",
+        "name": "AutoResearch 方法论闭环",
+        "primary_endpoint": "GET /api/v1/method-loop",
+        "next_endpoints": [
+            "POST /api/v1/ideas",
+            "POST /api/v1/hypotheses",
+            "POST /api/v1/plans",
+            "POST /api/v1/research/sessions",
+            "POST /api/v1/results",
+            "POST /api/v1/reviews",
+            "POST /api/v1/decisions",
+            "POST /api/v1/experiences/curation/preview",
+            "POST /api/v1/experiences/curation/apply",
+        ],
+        "facts_from": "method loop contract plus backing store collections",
+        "when_to_use": "外部 Runtime 需要按 Idea Pool -> Hypothesis -> Plan -> Experiment -> Result -> Review -> Decision -> Lesson 主路径接入平台。",
+        "safety": "平台只保存事实、状态和引用，不执行实验、不读取外部 artifact、不自动抽取经验。",
+    },
+    {
         "id": "source_to_insight",
-        "name": "资料到 insight",
+        "name": "底层 source/insight 兼容记录",
         "primary_endpoint": "POST /api/v1/sources",
         "next_endpoints": ["POST /api/v1/insights", "POST /api/v1/hypotheses"],
         "facts_from": "research_sources, research_insights",
-        "when_to_use": "外部 Runtime 已解析论文、网页、数据集、代码仓库或外部目标输入，需要写入可追溯输入与 insight。",
+        "when_to_use": "仅在旧集成或高级审计需要直接写 backing records 时使用；新外部 Runtime 的主路径应使用 POST /api/v1/ideas 和 POST /api/v1/hypotheses。",
         "safety": "平台只保存引用、摘要和 provenance，不保存大 PDF、音频、视频或模型文件。",
     },
     {
@@ -251,6 +271,7 @@ def install_agent_openapi(app: FastAPI) -> None:
             "docs": "/docs",
             "recommended_first_calls": [
                 "GET /api/v1/agent/onboarding",
+                "GET /api/v1/method-loop",
                 "GET /api/v1/capabilities",
                 "GET /api/v1/system/security",
                 "GET /api/v1/system/readiness",
@@ -264,6 +285,7 @@ def install_agent_openapi(app: FastAPI) -> None:
                 "public_without_token": [
                     "GET /api/v1/openapi.json",
                     "GET /api/v1/agent/onboarding",
+                    "GET /api/v1/method-loop",
                     "GET /api/v1/capabilities",
                     "GET /api/v1/system/status",
                     "GET /api/v1/system/readiness",

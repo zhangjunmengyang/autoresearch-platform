@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+export PATH="${HOME}/.local/bin:${PATH}"
+
 make test
 cd frontend && npm run typecheck
 cd ..
 make openapi
 
-python - <<'PY'
+cd backend
+uv run python - <<'PY'
 import json
 from pathlib import Path
 
-schema = json.loads(Path("docs/openapi.json").read_text())
+schema = json.loads(Path("../docs/openapi.json").read_text())
 missing = []
 for path, methods in schema["paths"].items():
     for method, operation in methods.items():

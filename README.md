@@ -25,11 +25,15 @@ AutoResearch Platform 是面向外部科研 Runtime 的 REST/OpenAPI 事实源�
 ## 快速开始
 
 ```bash
-make start local
+make doctor
+make bootstrap
+make start
 make status
 make test
 make openapi
 ```
+
+`make doctor` 会检查本地开发工具，并自动把 `$HOME/.local/bin` 纳入 Makefile 运行 PATH。干净 checkout 也可以直接运行 `make start`，它会在 `backend/.venv` 或 `frontend/node_modules` 缺失时先安装项目依赖。
 
 默认地址:
 

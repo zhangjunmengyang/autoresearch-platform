@@ -5,7 +5,9 @@ Docker packaging is intentionally thin in v1. The durable deployment target is F
 Local development can run without Docker through:
 
 ```bash
-make start local
+make doctor
+make bootstrap
+make start
 ```
 
 The compose file starts three services:

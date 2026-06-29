@@ -108,12 +108,14 @@ def test_agent_onboarding_bundle_summarizes_public_entrypoints_and_skill_refs():
     assert onboarding["security"]["auth_required"] is False
     assert onboarding["readiness"]["state"] == "degraded"
     assert onboarding["capability_count"] == len(app.openapi()["x-agent-capabilities"])
+    assert onboarding["capability_groups"]["method_loop"]["primary_endpoint"] == "GET /api/v1/method-loop"
     assert onboarding["capability_groups"]["research_methodology"]["primary_endpoint"] == "POST /api/v1/research/programs"
     assert onboarding["capability_groups"]["research_audit"]["primary_endpoint"] == "GET /api/v1/research/events"
     assert onboarding["skill"]["name"] == "auto-research"
     assert "references/bootstrap.md" in onboarding["skill"]["load_order"]
     assert "references/safety-boundaries.md" in onboarding["skill"]["load_order"]
     assert "GET /api/v1/agent/onboarding" in onboarding["recommended_first_calls"]
+    assert "GET /api/v1/method-loop" in onboarding["recommended_first_calls"]
     assert "GET /api/v1/system/security" in onboarding["recommended_first_calls"]
     assert "GET /api/v1/research/design/audit" in onboarding["recommended_first_calls"]
     assert any(action["endpoint"] == "docs/architecture/reference.md" for action in onboarding["recommended_next_actions"])
@@ -173,6 +175,7 @@ def test_optional_api_token_protects_research_data_and_audits_write_attempts(mon
 
     assert client.get("/api/v1/capabilities").status_code == 200
     assert client.get("/api/v1/agent/onboarding").status_code == 200
+    assert client.get("/api/v1/method-loop").status_code == 200
     assert client.get("/api/v1/system/security").status_code == 200
     assert client.get("/api/v1/sources").status_code == 401
 
@@ -219,6 +222,7 @@ def test_public_openapi_uses_only_platform_capability_groups():
         "artifact_registry",
         "benchmark_registry",
         "capabilities",
+        "method_loop",
         "decision_records",
         "evidence_records",
             "experience_curation",
@@ -404,6 +408,109 @@ def test_source_to_session_to_artifact_close_loop():
     assert len(detail["events"]) >= 1
     assert len(detail["experiments"]) == 1
     assert len(detail["artifacts"]) >= 2
+
+
+def test_method_loop_endpoints_map_to_backing_collections():
+    loop = _data(client.get("/api/v1/method-loop"))
+    assert loop["schema"] == "autoresearch.method_loop.v1"
+    assert [stage["label"] for stage in loop["stages"]] == [
+        "Idea Pool",
+        "Hypothesis",
+        "Plan",
+        "Experiment",
+        "Result",
+        "Review",
+        "Decision",
+        "Lesson",
+    ]
+    assert loop["safety"]["executes_runtime"] is False
+
+    idea = _data(
+        client.post(
+            "/api/v1/ideas",
+            json={
+                "kind": "researcher_idea",
+                "title": "Try retrieval reranking",
+                "summary": "Researcher thinks reranking may improve long-tail cases.",
+                "tags": ["retrieval"],
+            },
+        )
+    )
+    assert idea["id"].startswith("idea_")
+    assert idea["metadata"]["loop_stage"] == "idea_pool"
+
+    hypothesis = _data(
+        client.post(
+            "/api/v1/hypotheses",
+            json={
+                "title": "Reranking improves long-tail recall",
+                "hypothesis": "A lightweight reranker improves recall on long-tail benchmark cases.",
+                "expected_effect": "recall@10 improves",
+                "acceptance_criteria": {"recall_delta_gt": 0.02},
+                "rejection_criteria": {"latency_delta_gt": 0.1},
+                "source_refs": [{"type": "source", "id": idea["id"]}],
+            },
+        )
+    )
+
+    plan = _data(
+        client.post(
+            "/api/v1/plans",
+            json={
+                "title": "Reranking ablation",
+                "hypothesis_id": hypothesis["id"],
+                "objective": "Validate reranking against the current benchmark baseline.",
+                "one_change": "Enable reranker after retrieval.",
+                "validation_method": "benchmark_comparison",
+                "controls": ["baseline retrieval"],
+                "acceptance_criteria": {"recall_delta_gt": 0.02},
+                "rejection_criteria": {"latency_delta_gt": 0.1},
+                "result_requirements": ["score_report", "badcase_summary"],
+            },
+        )
+    )
+    assert plan["id"].startswith("plan_")
+    assert plan["metadata"]["loop_stage"] == "plan"
+    assert "score_report" in plan["artifact_requirements"]
+
+    result = _data(
+        client.post(
+            "/api/v1/results",
+            json={
+                "result_type": "benchmark_result",
+                "title": "Reranking benchmark result",
+                "summary": "recall@10 improved by 0.03 with acceptable latency.",
+                "uri": "s3://bucket/rerank-result.json",
+                "sha256": "a" * 64,
+                "size_bytes": 2048,
+                "metrics": {"recall_at_10_delta": 0.03},
+                "source_refs": [{"type": "hypothesis", "id": hypothesis["id"]}],
+            },
+        )
+    )
+    assert result["id"].startswith("result_")
+    assert result["artifact_type"] == "benchmark_result"
+    assert result["metadata"]["loop_stage"] == "result"
+    assert result["payload"]["metrics"]["recall_at_10_delta"] == 0.03
+
+    applied = _data(
+        client.post(
+            "/api/v1/experiences/curation/apply",
+            json={
+                "action": "create",
+                "runtime": {"operator": "external-runtime"},
+                "experience": {
+                    "title": "Reranking helped long-tail recall",
+                    "body": "Use reranking when long-tail retrieval cases dominate failures.",
+                    "tags": ["retrieval"],
+                },
+                "source_refs": [{"type": "artifact", "id": result["id"]}],
+            },
+        )
+    )
+    lesson_id = applied["experience"]["id"]
+    lessons = _data(client.get("/api/v1/lessons?q=Reranking&limit=10"))
+    assert any(item["id"] == lesson_id for item in lessons["items"])
 
 
 def test_list_endpoints_support_status_filter_limit_offset_and_sort():

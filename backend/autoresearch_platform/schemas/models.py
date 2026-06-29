@@ -21,6 +21,17 @@ Status = Literal[
 ]
 
 SourceKind = Literal["paper", "url", "dataset", "repo", "note", "artifact_ref", "human_command", "runtime_input"]
+IdeaKind = Literal[
+    "paper",
+    "repo",
+    "dataset",
+    "benchmark_gap",
+    "researcher_idea",
+    "runtime_observation",
+    "failure_case",
+    "open_question",
+    "artifact_ref",
+]
 EventKind = Literal[
     "observation",
     "decision",
@@ -55,6 +66,17 @@ class SourceCreate(RecordModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
     provenance: dict[str, Any] = Field(default_factory=dict)
     tags: list[str] = Field(default_factory=list)
+
+
+class IdeaCreate(RecordModel):
+    kind: IdeaKind = "researcher_idea"
+    title: str
+    summary: str = ""
+    uri: str | None = None
+    provenance: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    tags: list[str] = Field(default_factory=list)
+    status: Status = "planned"
 
 
 class InsightCreate(RecordModel):
@@ -111,6 +133,22 @@ class ProtocolCreate(RecordModel):
     controls: list[str] = Field(default_factory=list)
     acceptance_criteria: dict[str, Any] = Field(default_factory=dict)
     rejection_criteria: dict[str, Any] = Field(default_factory=dict)
+    artifact_requirements: list[str] = Field(default_factory=list)
+    status: Status = "planned"
+
+
+class PlanCreate(RecordModel):
+    title: str
+    hypothesis_id: str | None = None
+    question_id: str | None = None
+    method_id: str | None = None
+    objective: str = ""
+    one_change: str
+    validation_method: str = ""
+    controls: list[str] = Field(default_factory=list)
+    acceptance_criteria: dict[str, Any] = Field(default_factory=dict)
+    rejection_criteria: dict[str, Any] = Field(default_factory=dict)
+    result_requirements: list[str] = Field(default_factory=list)
     artifact_requirements: list[str] = Field(default_factory=list)
     status: Status = "planned"
 
@@ -211,6 +249,23 @@ class ArtifactCreate(RecordModel):
     payload: dict[str, Any] = Field(default_factory=dict)
     source_refs: list[dict[str, Any]] = Field(default_factory=list)
     read_hint: dict[str, Any] = Field(default_factory=dict)
+
+
+class ResultCreate(RecordModel):
+    result_type: str = "experiment_result"
+    title: str
+    summary: str = ""
+    experiment_id: str | None = None
+    run_id: str | None = None
+    uri: str | None = None
+    sha256: str | None = None
+    mime_type: str = "application/octet-stream"
+    size_bytes: int | None = Field(None, ge=0)
+    storage: Literal["local", "s3", "gcs", "http", "external"] = "external"
+    metrics: dict[str, Any] = Field(default_factory=dict)
+    artifact_refs: list[dict[str, Any]] = Field(default_factory=list)
+    source_refs: list[dict[str, Any]] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class SessionClose(RecordModel):

@@ -3,21 +3,22 @@ import { navGroups } from '@/lib/page-config'
 
 const titles: Record<string, string> = {
   '/dashboard': '总览看板',
-  '/sources': '资料输入',
-  '/insights': '洞察与假设',
-  '/research/methodology': '科研方法论',
+  '/sources': 'Idea Pool',
+  '/insights': 'Hypothesis',
+  '/research': 'Plan / Experiment',
+  '/research/methodology': 'Plan',
   '/research-queue': '研究队列',
   '/research/context': '研究上下文',
   '/research/readiness': '就绪检查',
   '/research/rounds': '研究轮次',
   '/sessions': '研究账本',
   '/research/audit': '过程审计',
-  '/evidence': '证据记录',
-  '/artifacts': '成果引用',
+  '/evidence': 'Review',
+  '/artifacts': 'Result',
   '/benchmarks': '评测登记',
   '/reviews': '审查事件',
-  '/decisions': '决策记录',
-  '/knowledge/experiences': '长期经验',
+  '/decisions': 'Decision',
+  '/knowledge/experiences': 'Lesson',
   '/capabilities': '能力目录',
   '/status': '系统状态',
 }
@@ -42,11 +43,12 @@ export function AppShell() {
               <div className="nav-title">{group.title}</div>
               {group.items.map((item) => {
                 const Icon = item.icon
+                const isAliasActive = item.activePaths?.some((path) => location.pathname === path)
                 return (
                   <NavLink
                     key={item.path}
                     to={item.path}
-                    className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                    className={({ isActive }) => `nav-item ${isActive || isAliasActive ? 'active' : ''}`}
                   >
                     <Icon size={17} />
                     <span>{item.label}</span>
