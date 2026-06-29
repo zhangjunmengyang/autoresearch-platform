@@ -4,10 +4,16 @@ AutoResearch Platform 是外部科研 Runtime 的事实源。平台内只实现�
 
 ## 方法论闭环
 
-AutoResearch Platform 的生产主线不是对象管理系统，而是外部 Runtime 的研究闭环事实源:
+AutoResearch Platform 的生产主线不是对象管理系统，而是外部 Runtime 的研究闭环事实源。React 工作台是人类观察面，只展示 deployments、research runs、outputs、质量门和阻塞状态；闭环推进由外部 Runtime 通过 REST/OpenAPI 完成。
 
 ```text
 Idea Pool -> Hypothesis -> Plan -> Experiment -> Result -> Review -> Decision -> Lesson -> Next Hypothesis
+```
+
+FARS 风格的人类看板使用更粗的阶段名展示同一条链路:
+
+```text
+Ideation -> Planning -> Experimentation -> Writing -> Review -> Decision
 ```
 
 | 层 | 职责 |

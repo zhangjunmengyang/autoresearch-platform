@@ -9,6 +9,8 @@ Use `/api/v1/openapi.json` as the route and schema checker. Use this skill as th
 
 The platform is a control plane and ledger. It does not call models, execute benchmarks, train models, run agent loops, create worktrees, read external Runtime directories, or read large artifact payloads.
 
+The React workbench is an observer console for humans. External Runtime should drive the loop through REST/OpenAPI; the UI is for watching FARS deployments, research runs, outputs, quality gates and blocked/degraded states.
+
 ## Load Order
 
 1. Always read `references/bootstrap.md` before a formal run.
@@ -34,6 +36,8 @@ Detailed examples:
 
 ## Minimum Loop
 
+Use the detailed API loop for machine operations:
+
 1. `GET /api/v1/agent/onboarding`
 2. `GET /api/v1/method-loop`
 3. Check deployment and security with `GET /api/v1/system/security` and `GET /api/v1/system/readiness`.
@@ -42,6 +46,12 @@ Detailed examples:
 6. Record Experiment and Result through REST only: sessions/rounds/events plus `POST /api/v1/results`; the external Runtime executes all work.
 7. Review and decide with evidence summary, review audit, `POST /api/v1/reviews`, and `POST /api/v1/decisions`.
 8. Lesson curation must go through `POST /api/v1/experiences/curation/preview` before `POST /api/v1/experiences/curation/apply`.
+
+Human-facing dashboards collapse the same loop into FARS-style stages:
+
+```text
+Ideation -> Planning -> Experimentation -> Writing -> Review -> Decision
+```
 
 Quality gates stay explicit: use `GET /api/v1/research/readiness`, `GET /api/v1/research/rounds/{round_id}`, `GET /api/v1/artifacts/audit`, `GET /api/v1/reviews/audit`, and `GET /api/v1/research/audit/export` when moving from Result to Review, Decision, handoff, or Lesson. Inspect `unresolved_refs`, `quality_gaps`, `replication_plan`, `reproducibility.checklist`, `external_artifacts`, `handoff_steps`, `source_trace`, and `governance_gaps` instead of forcing completion.
 

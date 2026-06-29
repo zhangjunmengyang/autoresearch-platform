@@ -2,20 +2,20 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { navGroups } from '@/lib/page-config'
 
 const titles: Record<string, string> = {
-  '/dashboard': '总览看板',
+  '/dashboard': 'FARS 看板',
   '/sources': 'Idea Pool',
   '/insights': 'Hypothesis',
-  '/research': 'Plan / Experiment',
+  '/research': 'Research Runs',
   '/research/methodology': 'Plan',
   '/research-queue': '研究队列',
   '/research/context': '研究上下文',
   '/research/readiness': '就绪检查',
   '/research/rounds': '研究轮次',
-  '/sessions': '研究账本',
+  '/sessions': '研究运行',
   '/research/audit': '过程审计',
   '/evidence': 'Review',
-  '/artifacts': 'Result',
-  '/benchmarks': '评测登记',
+  '/artifacts': 'Outputs',
+  '/benchmarks': 'Benchmark',
   '/reviews': '审查事件',
   '/decisions': 'Decision',
   '/knowledge/experiences': 'Lesson',
@@ -34,7 +34,7 @@ export function AppShell() {
             <div className="brand-mark">AR</div>
             <div>
               <div className="brand-name">AutoResearch</div>
-            <div className="brand-subtitle">科研事实账本</div>
+            <div className="brand-subtitle">AI 科研控制台</div>
             </div>
         </div>
         <nav className="nav-groups" aria-label="主导航">
@@ -62,7 +62,7 @@ export function AppShell() {
       <main className="main">
         <header className="header">
           <h1>{title}</h1>
-          <div className="header-note">外部运行时通过 REST/OpenAPI 写入事实、过程和结果。</div>
+          <div className="header-note">AI Runtime 通过 REST/OpenAPI 发送事实；人类只观察研究运行、产出和质量门。</div>
         </header>
         <section className="content">
           <Outlet />

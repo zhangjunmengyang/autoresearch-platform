@@ -1,45 +1,38 @@
 import {
-  Brain,
-  FlaskConical,
+  FileText,
   LayoutDashboard,
-  Lightbulb,
   ListChecks,
-  ScrollText,
   Server,
   Sparkles,
 } from 'lucide-react'
 
 export const navGroups = [
   {
-    title: '方法论',
+    title: '运行',
     items: [
-      { path: '/dashboard', label: '总览看板', icon: LayoutDashboard },
-      { path: '/sources', label: 'Idea Pool 想法池', icon: ScrollText },
-      { path: '/insights', label: 'Hypothesis 假设', icon: Lightbulb },
-    ],
-  },
-  {
-    title: '研究',
-    items: [
+      { path: '/dashboard', label: 'FARS 看板', icon: LayoutDashboard },
       {
         path: '/research',
-        label: 'Plan / Experiment 计划实验',
+        label: 'Research Runs 运行',
         icon: ListChecks,
-        activePaths: ['/research/methodology', '/research-queue', '/research/context', '/research/readiness', '/research/rounds', '/research/audit'],
+        activePaths: [
+          '/sources',
+          '/insights',
+          '/research/methodology',
+          '/research-queue',
+          '/research/context',
+          '/research/readiness',
+          '/research/rounds',
+          '/research/audit',
+          '/sessions',
+        ],
       },
-      { path: '/sessions', label: 'Experiment 账本', icon: FlaskConical },
       {
-        path: '/evidence',
-        label: 'Review / Decision 复盘决策',
-        icon: Sparkles,
+        path: '/artifacts',
+        label: 'Outputs 成果',
+        icon: FileText,
         activePaths: ['/artifacts', '/benchmarks', '/reviews', '/decisions'],
       },
-    ],
-  },
-  {
-    title: '知识',
-    items: [
-      { path: '/knowledge/experiences', label: 'Lesson 经验', icon: Brain },
     ],
   },
   {

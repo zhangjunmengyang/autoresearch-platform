@@ -7,6 +7,7 @@
 - 如果外部 Runtime 持有仓库副本，正式研究前先运行 `python3 scripts/validate_agent_onboarding.py --base-url http://127.0.0.1:8010/api/v1`，确认接入包和 OpenAPI 元数据没有漂移。
 - 启动时先读取 `/api/v1/agent/onboarding`，拿到认证、就绪、能力组、Skill 加载顺序和建议首批调用。
 - 使用 `/api/v1/openapi.json` 校验 route/schema 漂移，必要时再读 `/api/v1/capabilities`。
+- React 工作台是人类观察面，只展示 FARS deployments、research runs、outputs、质量门和阻塞状态；不要把它当成闭环推进入口。
 - 启动时读取 `/api/v1/system/security`，确认是否需要 Bearer token；token 只能来自部署环境，不能写入平台记录。
 - 正式研究前先读取 `/api/v1/system/readiness`。生产运行应为 `ready`；本地 JSON 开发模式返回 `degraded` 时，应把这个限制写入 session。
 - 开题前先查长期经验。
@@ -39,6 +40,12 @@ python3 scripts/validate_agent_onboarding.py --base-url http://127.0.0.1:8010/ap
 
 ```text
 Idea Pool -> Hypothesis -> Plan -> Experiment -> Result -> Review -> Decision -> Lesson
+```
+
+人类看板按 FARS 风格折叠为:
+
+```text
+Ideation -> Planning -> Experimentation -> Writing -> Review -> Decision
 ```
 
 1. **接入自检**: `GET /api/v1/agent/onboarding`、`GET /api/v1/method-loop`、`GET /api/v1/system/readiness`、`GET /api/v1/system/security`。

@@ -56,22 +56,8 @@ for (const route of [
 
 const allowedNavPaths = new Set([
   '/dashboard',
-  '/sources',
-  '/insights',
   '/research',
-  '/research/methodology',
-  '/research-queue',
-  '/research/context',
-  '/research/readiness',
-  '/research/rounds',
-  '/sessions',
-  '/research/audit',
-  '/evidence',
   '/artifacts',
-  '/benchmarks',
-  '/reviews',
-  '/decisions',
-  '/knowledge/experiences',
   '/capabilities',
   '/status',
 ])
@@ -81,24 +67,39 @@ for (const navPath of navPaths) {
   assert(allowedNavPaths.has(navPath), `unknown navigation path ${navPath}`)
 }
 
-for (const label of ['总览看板', 'Idea Pool 想法池', 'Hypothesis 假设', 'Plan / Experiment 计划实验', 'Experiment 账本', 'Review / Decision 复盘决策', 'Lesson 经验', '能力目录', '系统状态']) {
+for (const label of ['FARS 看板', 'Research Runs 运行', 'Outputs 成果', '能力目录', '系统状态']) {
   assert(pageConfig.includes(label), `missing nav label ${label}`)
 }
 
-const researchGroup = pageConfig.match(/title: '研究',[\s\S]*?title: '知识'/)?.[0] || ''
-const researchNavLabels = [...researchGroup.matchAll(/label: '([^']+)'/g)].map((match) => match[1])
-assert.deepEqual(researchNavLabels, ['Plan / Experiment 计划实验', 'Experiment 账本', 'Review / Decision 复盘决策'], 'research navigation should stay compact')
-for (const hiddenResearchLabel of ['科研方法论', '研究队列', '研究上下文', '就绪检查', '研究轮次', '过程审计', '成果引用', '评测登记', '审查事件', '决策记录']) {
-  assert(!researchNavLabels.includes(hiddenResearchLabel), `low-frequency research entry leaked into main nav: ${hiddenResearchLabel}`)
+const visibleNavLabels = [...pageConfig.matchAll(/label: '([^']+)'/g)].map((match) => match[1])
+assert.deepEqual(visibleNavLabels, ['FARS 看板', 'Research Runs 运行', 'Outputs 成果', '能力目录', '系统状态'], 'visible navigation should stay FARS observer-first')
+for (const hiddenResearchLabel of ['Idea Pool 想法池', 'Hypothesis 假设', 'Plan / Experiment 计划实验', 'Experiment 账本', 'Review / Decision 复盘决策', 'Lesson 经验', '评测登记', '审查事件', '决策记录']) {
+  assert(!visibleNavLabels.includes(hiddenResearchLabel), `form-first entry leaked into main nav: ${hiddenResearchLabel}`)
 }
 
-for (const retainedPath of ['/sources', '/insights', '/research/methodology', '/sessions', '/artifacts', '/evidence', '/decisions', '/knowledge/experiences', '/research/context', '/research/readiness', '/research/rounds', '/research/audit', '/benchmarks', '/reviews']) {
-  assert(researchWorkbenchPage.includes(retainedPath), `research workbench should link to ${retainedPath}`)
+for (const hiddenPath of ['/sources', '/insights', '/research/methodology', '/sessions', '/evidence', '/decisions', '/knowledge/experiences', '/benchmarks', '/reviews']) {
+  assert(!navPaths.includes(hiddenPath), `form-first path leaked into visible nav: ${hiddenPath}`)
+  assert(!researchWorkbenchPage.includes(`to="${hiddenPath}"`) && !researchWorkbenchPage.includes(`path: '${hiddenPath}'`), `form-first path leaked into research workbench: ${hiddenPath}`)
 }
 
-for (const loopLabel of ['Idea Pool', 'Hypothesis', 'Plan', 'Experiment', 'Result', 'Review', 'Decision', 'Lesson']) {
-  assert(dashboardPage.includes(loopLabel), `dashboard missing loop label ${loopLabel}`)
-  assert(researchWorkbenchPage.includes(loopLabel), `research workbench missing loop label ${loopLabel}`)
+for (const diagnosticPath of ['/research/context', '/research/readiness', '/research/audit', '/capabilities', '/status']) {
+  assert(researchWorkbenchPage.includes(diagnosticPath), `research workbench should expose diagnostic path ${diagnosticPath}`)
+}
+
+for (const surfaceLabel of ['FARS DEPLOYMENTS', 'RESEARCH RUNS', 'OUTPUTS', 'PIPELINE SNAPSHOT', 'RUNTIME CONTRACT']) {
+  assert(researchWorkbenchPage.includes(surfaceLabel), `research workbench missing observer surface ${surfaceLabel}`)
+}
+
+for (const loopLabel of ['Ideation', 'Planning', 'Experimentation', 'Writing', 'Review', 'Decision']) {
+  assert(dashboardPage.includes(loopLabel), `dashboard missing FARS stage ${loopLabel}`)
+  assert(researchWorkbenchPage.includes(loopLabel), `research workbench missing FARS stage ${loopLabel}`)
+}
+
+for (const forbiddenVisibleTerm of ['写入', '登记', '创建', '人工', '账本', '评测登记']) {
+  assert(!pageConfig.includes(forbiddenVisibleTerm), `form-first term leaked into visible nav: ${forbiddenVisibleTerm}`)
+  assert(!dashboardPage.includes(forbiddenVisibleTerm), `form-first term leaked into dashboard: ${forbiddenVisibleTerm}`)
+  assert(!researchWorkbenchPage.includes(forbiddenVisibleTerm), `form-first term leaked into research workbench: ${forbiddenVisibleTerm}`)
+  assert(!appShell.includes(forbiddenVisibleTerm), `form-first term leaked into app shell: ${forbiddenVisibleTerm}`)
 }
 
 const navLabels = [...pageConfig.matchAll(/label: '([^']+)'/g)].map((match) => match[1])
