@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="AutoResearch">
+  <rect width="64" height="64" rx="12" fill="#111827"/>
+  <path d="M18 45V19h9.5c8.6 0 14.5 5.2 14.5 13s-5.9 13-14.5 13H18zm7-6h2.4c4.6 0 7.6-2.5 7.6-7s-3-7-7.6-7H25v14z" fill="#f8fafc"/>
+  <path d="M43 45l-5.5-9h-5.2l5.8 9H43z" fill="#5eead4"/>
+</svg>

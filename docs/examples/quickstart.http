@@ -1,0 +1,286 @@
+@base = http://127.0.0.1:8010/api/v1
+
+### 说明
+# 带有 *_demo 的 ID 需要替换为前面请求返回的真实 id。
+# 如果持有仓库副本，正式调用前可先运行:
+# python3 scripts/validate_agent_onboarding.py --base-url http://127.0.0.1:8010/api/v1
+
+### Agent 接入自检
+GET {{base}}/agent/onboarding
+
+### 能力目录
+GET {{base}}/capabilities
+
+### 查询长期经验
+POST {{base}}/experiences/query
+Content-Type: application/json
+
+{"query":"agent memory","limit":5}
+
+### 登记资料输入
+POST {{base}}/sources
+Content-Type: application/json
+
+{
+  "kind": "paper",
+  "title": "Memory Agents Demo Paper",
+  "uri": "https://example.test/paper",
+  "summary": "用于演示的论文摘要",
+  "tags": ["agent-memory"]
+}
+
+### 登记洞察
+POST {{base}}/insights
+Content-Type: application/json
+
+{
+  "title": "延迟回忆需要可追溯评测",
+  "body": "长期记忆能力必须使用延迟回忆任务验证。",
+  "source_refs": [{"type":"source","id":"source_demo"}]
+}
+
+### 登记假设
+POST {{base}}/hypotheses
+Content-Type: application/json
+
+{
+  "title": "回放提升延迟回忆",
+  "hypothesis": "周期性记忆回放会提升延迟回忆 recall。",
+  "expected_effect": "recall@10 提升",
+  "acceptance_criteria": {"recall_delta_gt": 0.05},
+  "rejection_criteria": {"latency_delta_gt": 0.2},
+  "insight_refs": ["insight_demo"]
+}
+
+### 读取方法模板
+GET {{base}}/research/method-templates
+
+### 登记研究计划
+POST {{base}}/research/programs
+Content-Type: application/json
+
+{
+  "title": "Agent 记忆研究",
+  "goal": "提高长任务接续和证据回放能力",
+  "domain": "agent-memory",
+  "constraints": ["不改变模型 provider"]
+}
+
+### 登记研究问题
+POST {{base}}/research/questions
+Content-Type: application/json
+
+{
+  "program_id": "program_demo",
+  "question": "周期性回放是否提升延迟回忆",
+  "success_criteria": {"recall_delta_gt": 0.05}
+}
+
+### 登记方法卡
+POST {{base}}/research/method-cards
+Content-Type: application/json
+
+{
+  "name": "延迟回忆评测",
+  "domain": "agent-memory",
+  "failure_modes": ["数据泄漏", "样本过少"],
+  "required_artifacts": ["benchmark_result", "run_log"]
+}
+
+### 登记预注册协议
+POST {{base}}/research/protocols
+Content-Type: application/json
+
+{
+  "question_id": "question_demo",
+  "method_id": "method_demo",
+  "one_change": "加入周期性回放",
+  "controls": ["无回放基线"],
+  "acceptance_criteria": {"recall_delta_gt": 0.05},
+  "rejection_criteria": {"latency_delta_gt": 0.2}
+}
+
+### 创建研究队列项
+POST {{base}}/research/intake
+Content-Type: application/json
+
+{
+  "title": "验证回放对延迟回忆的影响",
+  "rationale": "从论文洞察转成可运行评测",
+  "hypothesis_refs": ["hypothesis_demo"],
+  "human_constraints": ["只登记结果引用，不上传原始输出"]
+}
+
+### 启动研究账本
+POST {{base}}/research/sessions
+Content-Type: application/json
+
+{
+  "title": "回放延迟回忆实验账本",
+  "memory_context": {"query": "agent memory"},
+  "information_gain": "验证回放机制是否值得继续投入",
+  "human_constraints": ["不改变模型 provider"]
+}
+
+### 记录过程事件
+POST {{base}}/research/sessions/session_demo/events
+Content-Type: application/json
+
+{
+  "event_type": "runtime_event",
+  "title": "外部 Runtime 完成评测执行",
+  "payload": {
+    "summary": "评测执行完成，结果保存在外部对象存储",
+    "artifact_refs": [{"type":"artifact","uri":"s3://bucket/run-001.json"}]
+  }
+}
+
+### 预注册实验
+POST {{base}}/research/sessions/session_demo/experiments
+Content-Type: application/json
+
+{
+  "hypothesis": "回放提升延迟回忆",
+  "expected_effect": "recall@10 提升",
+  "acceptance_criteria": {"recall_delta_gt": 0.05},
+  "rejection_criteria": {"latency_delta_gt": 0.2},
+  "one_change": "加入周期性回放"
+}
+
+### 登记 artifact 引用
+POST {{base}}/research/sessions/session_demo/artifacts
+Content-Type: application/json
+
+{
+  "artifact_type": "benchmark_result",
+  "title": "延迟回忆评测结果",
+  "uri": "s3://bucket/agent-memory/run-001.json",
+  "sha256": "demo-sha256",
+  "mime_type": "application/json",
+  "storage": "s3",
+  "summary": "外部 Runtime 生成的评测结果引用"
+}
+
+### 创建 benchmark suite
+POST {{base}}/benchmarks
+Content-Type: application/json
+
+{
+  "name": "延迟回忆评测",
+  "domain": "agent-memory",
+  "external_runner": {
+    "adapter": "memory-recall-v1",
+    "runtime": "external",
+    "entrypoint": "external-runtime-owned"
+  },
+  "input_schema": {"dataset_ref": "artifact", "prompt_set": "array"},
+  "output_schema": {"scores": "object", "artifact_refs": "array", "summary": "string"},
+  "metric_schema": {"recall": {"type": "number", "direction": "higher_is_better"}},
+  "artifact_requirements": [
+    {"artifact_type": "benchmark_result", "required": true},
+    {"artifact_type": "run_log", "required": true}
+  ]
+}
+
+### 审计 benchmark suite 合同
+GET {{base}}/benchmarks/audit
+
+### 提交 benchmark run
+POST {{base}}/benchmark-runs
+Content-Type: application/json
+
+{
+  "benchmark_id": "benchmark_demo",
+  "session_id": "session_demo",
+  "status": "completed",
+  "scores": {"recall": 0.72},
+  "artifact_refs": [{"type":"artifact","id":"artifact_demo"}],
+  "provenance": {"runner": "external-runtime-demo"}
+}
+
+### 对比 benchmark runs
+GET {{base}}/benchmark-runs/compare?benchmark_id=benchmark_demo&metric=recall
+
+### 写入证据记录
+POST {{base}}/evidence-records
+Content-Type: application/json
+
+{
+  "claim": "周期性记忆回放会提升延迟回忆 recall。",
+  "subject": {"type":"hypothesis","id":"hypothesis_demo"},
+  "stance": "supports",
+  "evidence_kind": "benchmark_run",
+  "summary": "benchmark run 支持该假设，但还需要不同回放频率的复现实验。",
+  "evidence_refs": [{"type":"benchmark_run","id":"benchrun_demo"}],
+  "quality": {"confidence":"medium"},
+  "limitations": ["只完成一个回放频率"],
+  "reproducibility": {"status":"needs_replication"},
+  "recorded_by": {"kind":"external-runtime","id":"external-runtime-demo"}
+}
+
+### 写入审查事件
+POST {{base}}/reviews
+Content-Type: application/json
+
+{
+  "subject": {"type":"evidence_record","id":"evidence_demo"},
+  "reviewer": {"kind":"critic","id":"auto-critic-demo"},
+  "verdict": "completed",
+  "comments": "证据可追溯，限制条件已记录"
+}
+
+### 写入科研决策
+POST {{base}}/decisions
+Content-Type: application/json
+
+{
+  "subject": {"type":"hypothesis","id":"hypothesis_demo"},
+  "decision": "continue",
+  "rationale": "评测结果可追溯，但还需要补充不同回放频率的复现实验。",
+  "evidence_refs": [{"type":"evidence_record","id":"evidence_demo"}, {"type":"review","id":"review_demo"}],
+  "next_steps": ["比较不同回放频率"],
+  "decided_by": {"kind":"external-runtime","id":"external-runtime-demo"}
+}
+
+### 关闭账本
+POST {{base}}/research/sessions/session_demo/close
+Content-Type: application/json
+
+{
+  "status": "completed",
+  "retrospective": {
+    "failed_attempts": [],
+    "platform_gaps": [],
+    "next_agent_one_liner": "下一轮比较不同回放频率。"
+  },
+  "source_refs": [{"type":"benchmark_run","id":"benchrun_demo"}]
+}
+
+### 经验预检
+# 响应中的 source_trace 必须解析来源；governance_gaps 不能包含 blocking 缺口。
+POST {{base}}/experiences/curation/preview
+Content-Type: application/json
+
+{
+  "runtime": {"name":"external-runtime-demo","operator":"external-runtime"},
+  "experience": {
+    "title": "回放实验必须保留 runner provenance",
+    "problem": "只有分数没有 runner 或 artifact 时无法审计。",
+    "topics": ["agent-memory"]
+  },
+  "source_refs": [{"type":"decision","id":"decision_demo"}]
+}
+
+### 写入长期经验
+POST {{base}}/experiences/curation/apply
+Content-Type: application/json
+
+{
+  "runtime": {"name":"external-runtime-demo","operator":"external-runtime"},
+  "experience": {
+    "title": "回放实验必须保留 runner provenance",
+    "problem": "只有分数没有 runner 或 artifact 时无法审计。",
+    "topics": ["agent-memory"]
+  },
+  "source_refs": [{"type":"decision","id":"decision_demo"}]
+}

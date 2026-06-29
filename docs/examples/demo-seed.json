@@ -1,0 +1,105 @@
+{
+  "sources": [
+    {
+      "kind": "paper",
+      "title": "Memory Agents Demo Paper",
+      "uri": "https://example.test/paper",
+      "summary": "用于演示的论文摘要",
+      "tags": ["agent-memory"]
+    }
+  ],
+  "insights": [
+    {
+      "title": "延迟回忆需要可追溯评测",
+      "body": "长期记忆能力必须使用延迟回忆任务验证。",
+      "source_refs": [{"type": "source", "id": "source_demo"}]
+    }
+  ],
+  "hypotheses": [
+    {
+      "title": "回放提升延迟回忆",
+      "hypothesis": "周期性记忆回放会提升延迟回忆 recall。",
+      "expected_effect": "recall@10 提升",
+      "acceptance_criteria": {"recall_delta_gt": 0.05},
+      "rejection_criteria": {"latency_delta_gt": 0.2},
+      "insight_refs": ["insight_demo"]
+    }
+  ],
+  "research_programs": [
+    {
+      "title": "Agent 记忆研究",
+      "goal": "提高长任务接续和证据回放能力",
+      "domain": "agent-memory",
+      "constraints": ["不改变模型 provider"]
+    }
+  ],
+  "method_cards": [
+    {
+      "name": "延迟回忆评测",
+      "domain": "agent-memory",
+      "failure_modes": ["数据泄漏", "样本过少"],
+      "required_artifacts": ["benchmark_result", "run_log"]
+    }
+  ],
+  "benchmarks": [
+    {
+      "id": "benchmark_demo",
+      "name": "延迟回忆评测",
+      "domain": "agent-memory",
+      "external_runner": {
+        "adapter": "memory-recall-v1",
+        "runtime": "external",
+        "entrypoint": "external-runtime-owned"
+      },
+      "input_schema": {"dataset_ref": "artifact", "prompt_set": "array"},
+      "output_schema": {"scores": "object", "artifact_refs": "array", "summary": "string"},
+      "metric_schema": {"recall": {"type": "number", "direction": "higher_is_better"}},
+      "artifact_requirements": [
+        {"artifact_type": "benchmark_result", "required": true},
+        {"artifact_type": "run_log", "required": true}
+      ]
+    }
+  ],
+  "benchmark_runs": [
+    {
+      "benchmark_id": "benchmark_demo",
+      "session_id": "session_demo",
+      "status": "completed",
+      "scores": {"recall": 0.72},
+      "artifact_refs": [{"type": "artifact", "id": "artifact_demo"}],
+      "provenance": {"runner": "external-runtime-demo"}
+    }
+  ],
+  "evidence_records": [
+    {
+      "claim": "周期性记忆回放会提升延迟回忆 recall。",
+      "subject": {"type": "hypothesis", "id": "hypothesis_demo"},
+      "stance": "supports",
+      "evidence_kind": "benchmark_run",
+      "summary": "benchmark run 支持该假设，但还需要复现实验。",
+      "evidence_refs": [{"type": "benchmark_run", "id": "benchrun_demo"}],
+      "quality": {"confidence": "medium"},
+      "limitations": ["只完成一个回放频率"],
+      "reproducibility": {"status": "needs_replication"},
+      "recorded_by": {"kind": "external-runtime", "id": "external-runtime-demo"}
+    }
+  ],
+  "reviews": [
+    {
+      "subject": {"type": "evidence_record", "id": "evidence_demo"},
+      "reviewer": {"kind": "critic", "id": "auto-critic-demo"},
+      "verdict": "completed",
+      "comments": "证据可追溯，限制条件已记录"
+    }
+  ],
+  "decisions": [
+    {
+      "subject": {"type": "hypothesis", "id": "hypothesis_demo"},
+      "decision": "continue",
+      "rationale": "评测结果可追溯，但需要补充复现实验后再沉淀长期经验。",
+      "evidence_refs": [{"type": "evidence_record", "id": "evidence_demo"}, {"type": "review", "id": "review_demo"}],
+      "next_steps": ["补充复现实验"],
+      "decided_by": {"kind": "external-runtime", "id": "external-runtime-demo"}
+    }
+  ]
+}
