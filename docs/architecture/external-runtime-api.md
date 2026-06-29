@@ -18,37 +18,20 @@ python3 scripts/validate_agent_onboarding.py --base-url http://127.0.0.1:8010/ap
 
 ## 默认流程
 
-1. `GET /api/v1/agent/onboarding` 读取接入自检包，确认认证、部署就绪、能力组、Skill 加载顺序和建议首批调用。
-2. `GET /api/v1/system/security` 检查当前部署是否要求 Bearer token；需要 token 时，后续非公开 endpoint 必须带 `Authorization: Bearer <token>`。
-3. `GET /api/v1/system/readiness` 检查平台部署、存储和 schema 是否允许正式研究。
-4. `POST /api/v1/experiences/query` 读取历史经验。
-5. `GET /api/v1/research/context?query=...&claim=...` 恢复已有事实、风险、证据状态和建议下一步。
-6. `GET /api/v1/research/rounds/{round_id}` 在继续已有轮次前恢复追踪包。
-7. `GET /api/v1/research/readiness?query=...&claim=...&round_id=...&stage=...` 在实验、审查、决策或经验维护前做只读就绪检查。
-8. `POST /api/v1/research/rounds` 登记本轮方案、worktree/branch 引用和状态。
-9. `POST /api/v1/sources` 写入论文、资料、artifact 引用、外部 Runtime 输入或模糊目标输入。
-10. `POST /api/v1/insights` 和 `POST /api/v1/hypotheses` 写入 insight 与可验证假设。
-11. `POST /api/v1/research/programs`、`questions`、`method-cards` 和 `protocols` 登记科研设计和预注册协议。
-12. `GET /api/v1/research/design/audit` 审计问题、假设和协议是否可回答、可证伪、可审计。
-13. `POST /api/v1/research/intake` 创建待研究任务。
-14. `POST /api/v1/research/intake/{item_id}/claim` 领取任务。
-15. `POST /api/v1/research/intake/{item_id}/start-session` 启动 session。
-16. `POST /api/v1/research/sessions/{session_id}/events` 记录过程事件。
-17. `POST /api/v1/research/sessions/{session_id}/experiments` 预注册实验。
-18. `GET /api/v1/benchmarks/audit` 在运行评测前审计 suite adapter、输入、输出、指标和 artifact 要求。
-19. `POST /api/v1/benchmark-runs` 或 artifact endpoint 写入执行结果。
-20. `GET /api/v1/benchmark-runs/compare?benchmark_id=...&metric=...` 对多个 run 做只读分数、状态、最佳 run 和证据准备缺口对比。
-21. `GET /api/v1/artifacts/audit?session_id=...` 审计 artifact 元数据是否足够作为证据。
-22. `PATCH /api/v1/research/rounds/{round_id}` 回填 commit、experiment、artifact、evidence 或 decision 引用。
-23. `GET /api/v1/research/rounds/{round_id}` 校验追踪包、warnings 和 `unresolved_refs`。
-24. `POST /api/v1/evidence-records` 写入科研主张与证据的支持、反证、不确定或复现关系。
-25. `GET /api/v1/evidence-records/summary?claim=...` 聚合科研主张的支持、反证、不确定、复现状态、覆盖范围、质量缺口和复现计划建议。
-26. `POST /api/v1/reviews` 写入自动 critic、外部 Runtime 或必要人工复核的审查结果。
-27. `GET /api/v1/reviews/audit?q=...` 审计 review 是否足够支撑 decision。
-28. `POST /api/v1/decisions` 写入基于证据的科研决策。
-29. `GET /api/v1/research/audit/export?query=...&claim=...&session_id=...&round_id=...` 导出只读审计包，用于交接、复现或开源审查。
-30. `POST /api/v1/research/sessions/{session_id}/close` 收尾。
-31. `POST /api/v1/experiences/curation/preview` 和 `apply` 显式沉淀长期经验。
+外部 Runtime 的主路径按 FARS/Karpathy 风格闭环组织，不按平台内部对象名组织:
+
+```text
+Idea Pool -> Hypothesis -> Plan -> Experiment -> Result -> Review -> Decision -> Lesson
+```
+
+1. 接入自检: `GET /api/v1/agent/onboarding`、`GET /api/v1/method-loop`、`GET /api/v1/system/security`、`GET /api/v1/system/readiness`。
+2. 恢复 Idea Pool: `POST /api/v1/experiences/query`、`GET /api/v1/research/context?query=...&claim=...`，必要时写入 `POST /api/v1/ideas`。
+3. 登记 Hypothesis: `POST /api/v1/hypotheses`，来源通过 `source_refs`、`insight_refs` 或 metadata 追溯到 idea pool。
+4. 登记 Plan: `POST /api/v1/plans` 和 `GET /api/v1/research/design/audit` 表达唯一变化、验证方式、接受/拒绝标准和结果要求。
+5. 启动 Experiment: 当前用 `POST /api/v1/research/sessions`、`POST /api/v1/research/rounds` 和 session events 记录外部 Runtime 执行，不要求平台执行实验。
+6. 写入 Result: `POST /api/v1/results`，或用 experiment patch、benchmark run 和 artifact endpoint 写入分数、日志、图表、badcase、commit 或报告引用。
+7. 写入 Review 与 Decision: 当前用 evidence summary、review audit 和 decision endpoint 记录结果解释、质量缺口、`keep/discard/continue/retry/blocked/archived` 判断。
+8. 沉淀 Lesson: `POST /api/v1/experiences/curation/preview` 后再 `apply`，只沉淀有来源追踪的可复用经验。
 
 ## Security And Audit Contract
 
@@ -62,7 +45,7 @@ python3 scripts/validate_agent_onboarding.py --base-url http://127.0.0.1:8010/ap
 
 ## 场景边界
 
-平台不得为举例场景创建一等模块。任意具体交互形态都由外部 Runtime 处理；平台只接收通用 source、session event 和 artifact reference。
+平台不得为举例场景创建一等模块。任意具体交互形态都由外部 Runtime 处理；平台只接收通用 idea/source、session event、result 和 artifact reference。
 
 ## List Query Contract
 
@@ -70,9 +53,12 @@ List endpoint 在标准 `{data,warnings}` envelope 内返回 `{items,total,limit
 
 核心 list endpoints:
 
+- `GET /api/v1/method-loop`
+- `GET /api/v1/ideas`
 - `GET /api/v1/sources`
 - `GET /api/v1/insights`
 - `GET /api/v1/hypotheses`
+- `GET /api/v1/plans`
 - `GET /api/v1/research/programs`
 - `GET /api/v1/research/questions`
 - `GET /api/v1/research/method-cards`
@@ -86,6 +72,7 @@ List endpoint 在标准 `{data,warnings}` envelope 内返回 `{items,total,limit
 - `GET /api/v1/research/sessions`
 - `GET /api/v1/research/events`
 - `GET /api/v1/research/experiments`
+- `GET /api/v1/results`
 - `GET /api/v1/artifacts`
 - `GET /api/v1/artifacts/audit`
 - `GET /api/v1/benchmarks`
@@ -97,6 +84,7 @@ List endpoint 在标准 `{data,warnings}` envelope 内返回 `{items,total,limit
 - `GET /api/v1/reviews/audit`
 - `GET /api/v1/research/audit/export`
 - `GET /api/v1/decisions`
+- `GET /api/v1/lessons`
 - `GET /api/v1/experiences`
 
 ## Artifact Reference Contract
@@ -125,11 +113,13 @@ Runtime event 使用 `event_type=runtime_event` 写入通用过程账本。事�
 
 ## Research Methodology Contract
 
-科研方法论对象用于登记设计，不用于执行。外部 Runtime 可以按以下顺序登记:
+科研方法论对象用于登记设计，不用于执行。外部 Runtime 的可见主线是:
 
 ```text
-method template -> research program -> research question -> method card -> protocol -> intake item
+Idea Pool -> Hypothesis -> Plan -> Experiment -> Result -> Review -> Decision -> Lesson
 ```
+
+`GET /api/v1/method-loop` 返回这个主线、每个阶段的用途、建议 endpoint 和底层 collection 计数。外部 Runtime 应优先使用 `POST /api/v1/ideas`、`POST /api/v1/hypotheses`、`POST /api/v1/plans` 和 `POST /api/v1/results` 表达最小闭环。
 
 `GET /api/v1/research/method-templates` 是只读方法模板目录，提供文献综合、复现、消融、评测对比和失败分析等通用自动化科研设计脚手架。每个模板返回 `design_questions`、`required_records`、`protocol_defaults`、`artifact_requirements`、`evidence_expectations`、`review_gates` 和 `next_endpoints`。模板不进入 DB，不执行实验，不创建 workflow DAG；外部 Runtime 必须显式登记 method card、protocol、artifact、evidence 和 review。
 

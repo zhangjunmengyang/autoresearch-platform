@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "AutoResearch Platform",
-    "description": "\nAutoResearch Platform 是外部科研 Runtime 的 REST/OpenAPI 事实源。\n\n平台负责保存资料、insight、任务、session ledger、实验、artifact、benchmark run、\nreview、通用 Runtime 事件和长期经验。模型调用、benchmark 执行、agent loop、\n训练和评测由外部 Runtime 负责。\n",
+    "description": "\nAutoResearch Platform 是外部科研 Runtime 的 REST/OpenAPI 事实源。\n\n平台负责保存 FARS/Karpathy 风格研究闭环事实:\nIdea Pool -> Hypothesis -> Plan -> Experiment -> Result -> Review -> Decision -> Lesson。\n模型调用、benchmark 执行、agent loop、训练和评测由外部 Runtime 负责。\n",
     "version": "0.1.0"
   },
   "paths": {
@@ -254,6 +254,611 @@
           "safety": "只读平台内请求元数据，不包含请求正文、不访问外部 Runtime 或 artifact URI。"
         },
         "x-capability-group": "system",
+        "x-safety-level": "read",
+        "x-agent-visible": true,
+        "x-response-contract": "返回标准 list envelope data: items,total,limit,offset,sort。"
+      }
+    },
+    "/api/v1/method-loop": {
+      "get": {
+        "tags": [
+          "method-loop"
+        ],
+        "summary": "读取 AutoResearch 方法论闭环",
+        "operationId": "method_loop_api_v1_method_loop_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "x-agent-guidance": {
+          "when_to_use": "外部 Runtime 首次接入或恢复研究前，读取 FARS/Karpathy 风格的 canonical 主路径和当前 API 映射。",
+          "facts_from": "method loop contract, store health",
+          "next_steps": [
+            "POST /api/v1/ideas",
+            "POST /api/v1/hypotheses",
+            "POST /api/v1/plans",
+            "POST /api/v1/results",
+            "POST /api/v1/experiences/curation/preview"
+          ],
+          "safety": "只读方法论和本平台 collection 计数，不执行实验、不读取外部 artifact。"
+        },
+        "x-capability-group": "method_loop",
+        "x-safety-level": "read",
+        "x-agent-visible": true,
+        "x-response-contract": "返回 schema、loop、stages、counts、recommended_flow 和 safety。"
+      }
+    },
+    "/api/v1/ideas": {
+      "post": {
+        "tags": [
+          "method-loop"
+        ],
+        "summary": "创建 idea pool 输入",
+        "operationId": "create_idea_api_v1_ideas_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdeaCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-agent-guidance": {
+          "when_to_use": "写入论文、repo、benchmark gap、研究员想法、历史失败或外部观察，作为 hypothesis 来源。",
+          "facts_from": "external Runtime, researcher idea pool, papers, repos, benchmark gaps",
+          "next_steps": [
+            "POST /api/v1/hypotheses",
+            "GET /api/v1/method-loop"
+          ],
+          "safety": "read/write through REST contract only"
+        },
+        "x-capability-group": "method_loop",
+        "x-safety-level": "write",
+        "x-agent-visible": true,
+        "x-response-contract": "写入 sources backing collection，并标记 metadata.loop_stage=idea_pool。"
+      },
+      "get": {
+        "tags": [
+          "method-loop"
+        ],
+        "summary": "列出 idea pool 输入",
+        "operationId": "list_ideas_api_v1_ideas_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Q"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "-created_at",
+              "title": "Sort"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-agent-guidance": {
+          "when_to_use": "恢复论文、repo、benchmark gap、研究员想法、历史失败和外部观察等假设来源。",
+          "facts_from": "sources backing collection",
+          "next_steps": [],
+          "safety": "read/write through REST contract only"
+        },
+        "x-capability-group": "method_loop",
+        "x-safety-level": "read",
+        "x-agent-visible": true,
+        "x-response-contract": "返回标准 list envelope data: items,total,limit,offset,sort。"
+      }
+    },
+    "/api/v1/plans": {
+      "post": {
+        "tags": [
+          "method-loop"
+        ],
+        "summary": "创建最小研究计划",
+        "operationId": "create_plan_api_v1_plans_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-agent-guidance": {
+          "when_to_use": "把 hypothesis 收敛成最小实验计划，声明唯一变化、验证方式、接受/拒绝标准和结果要求。",
+          "facts_from": "hypothesis, external Runtime planning",
+          "next_steps": [
+            "POST /api/v1/research/sessions",
+            "GET /api/v1/research/design/audit"
+          ],
+          "safety": "read/write through REST contract only"
+        },
+        "x-capability-group": "method_loop",
+        "x-safety-level": "write",
+        "x-agent-visible": true,
+        "x-response-contract": "写入 protocols backing collection，并标记 metadata.loop_stage=plan。"
+      },
+      "get": {
+        "tags": [
+          "method-loop"
+        ],
+        "summary": "列出最小研究计划",
+        "operationId": "list_plans_api_v1_plans_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Q"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "-created_at",
+              "title": "Sort"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-agent-guidance": {
+          "when_to_use": "查找外部 Runtime 已登记的 plan、验证合同和结果要求。",
+          "facts_from": "protocols backing collection",
+          "next_steps": [],
+          "safety": "read/write through REST contract only"
+        },
+        "x-capability-group": "method_loop",
+        "x-safety-level": "read",
+        "x-agent-visible": true,
+        "x-response-contract": "返回标准 list envelope data: items,total,limit,offset,sort。"
+      }
+    },
+    "/api/v1/results": {
+      "post": {
+        "tags": [
+          "method-loop"
+        ],
+        "summary": "创建结果引用",
+        "operationId": "create_result_api_v1_results_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResultCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-agent-guidance": {
+          "when_to_use": "外部 Runtime 完成实验、benchmark、复现、仿真或文献验证后，登记分数、日志、图表、badcase、commit 或报告引用。",
+          "facts_from": "external Runtime result package",
+          "next_steps": [
+            "POST /api/v1/evidence-records",
+            "POST /api/v1/reviews",
+            "POST /api/v1/decisions"
+          ],
+          "safety": "只登记外部 result 引用和轻量 metadata，不保存大文件、原文或 checkpoint。"
+        },
+        "x-capability-group": "method_loop",
+        "x-safety-level": "write",
+        "x-agent-visible": true,
+        "x-response-contract": "写入 artifacts backing collection，并标记 metadata.loop_stage=result。"
+      },
+      "get": {
+        "tags": [
+          "method-loop"
+        ],
+        "summary": "列出结果引用",
+        "operationId": "list_results_api_v1_results_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Q"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "-created_at",
+              "title": "Sort"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-agent-guidance": {
+          "when_to_use": "查看分数、日志、图表、badcase、commit、报告或论文草稿等外部结果引用。",
+          "facts_from": "artifacts backing collection",
+          "next_steps": [],
+          "safety": "read/write through REST contract only"
+        },
+        "x-capability-group": "method_loop",
+        "x-safety-level": "read",
+        "x-agent-visible": true,
+        "x-response-contract": "返回标准 list envelope data: items,total,limit,offset,sort。"
+      }
+    },
+    "/api/v1/lessons": {
+      "get": {
+        "tags": [
+          "method-loop"
+        ],
+        "summary": "列出经验 lessons",
+        "operationId": "list_lessons_api_v1_lessons_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Q"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "-created_at",
+              "title": "Sort"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "x-agent-guidance": {
+          "when_to_use": "按方法论闭环读取已沉淀 lessons。写入仍必须走 experiences curation preview/apply。",
+          "facts_from": "experiences backing collection",
+          "next_steps": [
+            "POST /api/v1/experiences/curation/preview",
+            "POST /api/v1/experiences/curation/apply"
+          ],
+          "safety": "只读经验；平台不从 ledger 自动抽取 lesson。"
+        },
+        "x-capability-group": "method_loop",
         "x-safety-level": "read",
         "x-agent-visible": true,
         "x-response-contract": "返回标准 list envelope data: items,total,limit,offset,sort。"
@@ -5750,6 +6355,87 @@
         ],
         "title": "HypothesisCreate"
       },
+      "IdeaCreate": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "paper",
+              "repo",
+              "dataset",
+              "benchmark_gap",
+              "researcher_idea",
+              "runtime_observation",
+              "failure_case",
+              "open_question",
+              "artifact_ref"
+            ],
+            "title": "Kind",
+            "default": "researcher_idea"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary",
+            "default": ""
+          },
+          "uri": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uri"
+          },
+          "provenance": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Provenance"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "queued",
+              "claimed",
+              "running",
+              "completed",
+              "failed",
+              "rejected",
+              "superseded",
+              "blocked",
+              "degraded",
+              "archived"
+            ],
+            "title": "Status",
+            "default": "planned"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "title": "IdeaCreate"
+      },
       "InsightCreate": {
         "properties": {
           "title": {
@@ -5935,6 +6621,117 @@
           "name"
         ],
         "title": "MethodCardCreate"
+      },
+      "PlanCreate": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "hypothesis_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hypothesis Id"
+          },
+          "question_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Question Id"
+          },
+          "method_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Method Id"
+          },
+          "objective": {
+            "type": "string",
+            "title": "Objective",
+            "default": ""
+          },
+          "one_change": {
+            "type": "string",
+            "title": "One Change"
+          },
+          "validation_method": {
+            "type": "string",
+            "title": "Validation Method",
+            "default": ""
+          },
+          "controls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Controls"
+          },
+          "acceptance_criteria": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Acceptance Criteria"
+          },
+          "rejection_criteria": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Rejection Criteria"
+          },
+          "result_requirements": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Result Requirements"
+          },
+          "artifact_requirements": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Artifact Requirements"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "queued",
+              "claimed",
+              "running",
+              "completed",
+              "failed",
+              "rejected",
+              "superseded",
+              "blocked",
+              "degraded",
+              "archived"
+            ],
+            "title": "Status",
+            "default": "planned"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "title",
+          "one_change"
+        ],
+        "title": "PlanCreate"
       },
       "ProtocolCreate": {
         "properties": {
@@ -6404,6 +7201,129 @@
         "type": "object",
         "title": "ResearchRoundPatch"
       },
+      "ResultCreate": {
+        "properties": {
+          "result_type": {
+            "type": "string",
+            "title": "Result Type",
+            "default": "experiment_result"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary",
+            "default": ""
+          },
+          "experiment_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Experiment Id"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "uri": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uri"
+          },
+          "sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha256"
+          },
+          "mime_type": {
+            "type": "string",
+            "title": "Mime Type",
+            "default": "application/octet-stream"
+          },
+          "size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Bytes"
+          },
+          "storage": {
+            "type": "string",
+            "enum": [
+              "local",
+              "s3",
+              "gcs",
+              "http",
+              "external"
+            ],
+            "title": "Storage",
+            "default": "external"
+          },
+          "metrics": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metrics"
+          },
+          "artifact_refs": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Artifact Refs"
+          },
+          "source_refs": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Source Refs"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "title": "ResultCreate"
+      },
       "ReviewCreate": {
         "properties": {
           "subject": {
@@ -6722,6 +7642,10 @@
       "description": "平台只读状态。"
     },
     {
+      "name": "method-loop",
+      "description": "FARS/Karpathy 风格 AutoResearch 主闭环入口。"
+    },
+    {
       "name": "sources",
       "description": "论文、URL、数据集、代码仓库、笔记、artifact 引用和外部 Runtime 输入。"
     },
@@ -6767,15 +7691,34 @@
       "safety": "只读平台配置和迁移合同，不访问外部 Runtime、不读取 artifact URI、不执行迁移。"
     },
     {
+      "id": "method_loop",
+      "name": "AutoResearch 方法论闭环",
+      "primary_endpoint": "GET /api/v1/method-loop",
+      "next_endpoints": [
+        "POST /api/v1/ideas",
+        "POST /api/v1/hypotheses",
+        "POST /api/v1/plans",
+        "POST /api/v1/research/sessions",
+        "POST /api/v1/results",
+        "POST /api/v1/reviews",
+        "POST /api/v1/decisions",
+        "POST /api/v1/experiences/curation/preview",
+        "POST /api/v1/experiences/curation/apply"
+      ],
+      "facts_from": "method loop contract plus backing store collections",
+      "when_to_use": "外部 Runtime 需要按 Idea Pool -> Hypothesis -> Plan -> Experiment -> Result -> Review -> Decision -> Lesson 主路径接入平台。",
+      "safety": "平台只保存事实、状态和引用，不执行实验、不读取外部 artifact、不自动抽取经验。"
+    },
+    {
       "id": "source_to_insight",
-      "name": "资料到 insight",
+      "name": "底层 source/insight 兼容记录",
       "primary_endpoint": "POST /api/v1/sources",
       "next_endpoints": [
         "POST /api/v1/insights",
         "POST /api/v1/hypotheses"
       ],
       "facts_from": "research_sources, research_insights",
-      "when_to_use": "外部 Runtime 已解析论文、网页、数据集、代码仓库或外部目标输入，需要写入可追溯输入与 insight。",
+      "when_to_use": "仅在旧集成或高级审计需要直接写 backing records 时使用；新外部 Runtime 的主路径应使用 POST /api/v1/ideas 和 POST /api/v1/hypotheses。",
       "safety": "平台只保存引用、摘要和 provenance，不保存大 PDF、音频、视频或模型文件。"
     },
     {
@@ -6945,6 +7888,7 @@
     "docs": "/docs",
     "recommended_first_calls": [
       "GET /api/v1/agent/onboarding",
+      "GET /api/v1/method-loop",
       "GET /api/v1/capabilities",
       "GET /api/v1/system/security",
       "GET /api/v1/system/readiness",
@@ -6958,6 +7902,7 @@
       "public_without_token": [
         "GET /api/v1/openapi.json",
         "GET /api/v1/agent/onboarding",
+        "GET /api/v1/method-loop",
         "GET /api/v1/capabilities",
         "GET /api/v1/system/status",
         "GET /api/v1/system/readiness",

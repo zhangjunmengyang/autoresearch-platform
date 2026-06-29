@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { ErrorMessage, Panel, StatusBadge } from '@/components/Primitives'
 import { getData } from '@/lib/api'
-import { formatScalar } from '@/lib/display'
+import { formatHumanText, formatScalar } from '@/lib/display'
 
 type OnboardingBundle = {
   state: string
@@ -39,6 +39,10 @@ function formatAuthScheme(scheme: string) {
   return scheme || '未记录'
 }
 
+function formatCapabilityText(value: unknown) {
+  return formatHumanText(value)
+}
+
 export function CapabilitiesPage() {
   const capabilities = useQuery({ queryKey: ['capabilities'], queryFn: () => getData<Array<Record<string, unknown>>>('/api/v1/capabilities') })
   const onboarding = useQuery({
@@ -49,30 +53,30 @@ export function CapabilitiesPage() {
 
   return (
     <div className="stack">
-      <Panel title="Agent 接入自检">
+      <Panel title="智能体接入自检">
         <ErrorMessage message={onboarding.error?.message} />
         {onboardingData ? (
           <div className="record-list compact">
             <article className="record-row">
               <div>
                 <div className="record-title">接入状态</div>
-                <div className="record-meta">接口合同 {onboardingData.openapi}</div>
+                <div className="record-meta">接口合同 已生成</div>
                 <div className="record-meta">认证 {formatAuthScheme(onboardingData.security.auth_scheme)} · 需要令牌 {formatBool(onboardingData.security.auth_required)}</div>
               </div>
               <StatusBadge status={onboardingData.state} />
             </article>
             <article className="record-row">
               <div>
-                <div className="record-title">Skill 加载顺序</div>
-                <div className="record-meta">{onboardingData.skill.name} · {onboardingData.skill.path}</div>
-                <div className="record-meta">{onboardingData.skill.load_order.join('，')}</div>
+                <div className="record-title">技能加载顺序</div>
+                <div className="record-meta">自动研究使用流程</div>
+                <div className="record-meta">共 {onboardingData.skill.load_order.length} 个加载步骤</div>
               </div>
               <StatusBadge status={onboardingData.readiness.state} />
             </article>
             <article className="record-row">
               <div>
                 <div className="record-title">建议首批调用</div>
-                <div className="record-meta">{onboardingData.recommended_first_calls.join('，')}</div>
+                <div className="record-meta">共 {onboardingData.recommended_first_calls.length} 个建议调用，按接口合同执行。</div>
               </div>
             </article>
             <article className="record-row">
@@ -81,7 +85,7 @@ export function CapabilitiesPage() {
                 <div className="record-meta">
                   外部读取 {formatBool(onboardingData.integrity.external_reads)} · 外部写入 {formatBool(onboardingData.integrity.external_writes)} · 执行运行时 {formatBool(onboardingData.integrity.executes_runtime)}
                 </div>
-                <div className="record-meta">返回接口全文 {formatBool(onboardingData.integrity.returns_openapi_body)} · {formatScalar(onboardingData.safety)}</div>
+                <div className="record-meta">返回接口全文 {formatBool(onboardingData.integrity.returns_openapi_body)} · {formatCapabilityText(formatScalar(onboardingData.safety))}</div>
               </div>
             </article>
             {onboardingData.readiness.recommended_next_actions.length ? (
@@ -90,7 +94,7 @@ export function CapabilitiesPage() {
                   <div className="record-title">接入建议动作</div>
                   {onboardingData.readiness.recommended_next_actions.map((action) => (
                     <div className="record-meta" key={`${action.endpoint}-${action.reason}`}>
-                      {action.endpoint || '未记录接口'} · {action.reason || '未记录原因'}
+                      {formatCapabilityText(action.reason || '未记录原因')}
                     </div>
                   ))}
                 </div>
@@ -100,14 +104,14 @@ export function CapabilitiesPage() {
         ) : <div className="empty">正在读取接入自检包</div>}
       </Panel>
 
-      <Panel title="外部 Runtime 能力目录">
+      <Panel title="外部运行方能力目录">
         <ErrorMessage message={capabilities.error?.message} />
         <div className="capability-grid">
           {(capabilities.data || []).map((capability) => (
             <article className="capability" key={String(capability.id)}>
-              <h2>{String(capability.name)}</h2>
-              <p>{String(capability.when_to_use)}</p>
-              <code>{String(capability.primary_endpoint)}</code>
+              <h2>{formatCapabilityText(capability.name)}</h2>
+              <p>{formatCapabilityText(capability.when_to_use)}</p>
+              <code>主接口见接口合同</code>
             </article>
           ))}
         </div>

@@ -1,6 +1,6 @@
 # Execution Ledger
 
-Use this when external work produces code changes, experiments, events, artifacts, benchmark runs or handoff material.
+Use this when external work produces code changes, experiments, events, results, artifacts, benchmark runs or handoff material.
 
 ## Research Rounds
 
@@ -21,6 +21,7 @@ Use this when external work produces code changes, experiments, events, artifact
 
 ## Artifacts And Benchmarks
 
+- Write the compact Result stage with `POST /api/v1/results` when an external run produces scores, logs, badcases, figures, reports or other result references.
 - Store artifact references, not large payloads.
 - Query `GET /api/v1/artifacts` when recovering prior outputs or checking reusable evidence.
 - Query `GET /api/v1/artifacts/audit?session_id=...` before using artifacts as evidence, review input or decision support.

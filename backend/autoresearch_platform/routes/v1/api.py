@@ -27,14 +27,17 @@ from autoresearch_platform.schemas import (
     ExperimentCreate,
     ExperimentPatch,
     HypothesisCreate,
+    IdeaCreate,
     InsightCreate,
     IntakeCreate,
     MethodCardCreate,
+    PlanCreate,
     ProtocolCreate,
     ResearchRoundCreate,
     ResearchRoundPatch,
     ResearchProgramCreate,
     ResearchQuestionCreate,
+    ResultCreate,
     ReviewCreate,
     SessionClose,
     SessionCreate,
@@ -242,6 +245,73 @@ RESEARCH_METHOD_TEMPLATES = [
     },
 ]
 
+METHOD_LOOP_STAGES = [
+    {
+        "id": "idea_pool",
+        "label": "Idea Pool",
+        "purpose": "论文、repo、数据集、benchmark gap、研究员想法、历史失败和外部观察。",
+        "primary_endpoint": "POST /api/v1/ideas",
+        "list_endpoint": "GET /api/v1/ideas",
+        "backing_collection": "sources",
+    },
+    {
+        "id": "hypothesis",
+        "label": "Hypothesis",
+        "purpose": "把 idea 收敛成一个可验证假设，并保留来源引用。",
+        "primary_endpoint": "POST /api/v1/hypotheses",
+        "list_endpoint": "GET /api/v1/hypotheses",
+        "backing_collection": "hypotheses",
+    },
+    {
+        "id": "plan",
+        "label": "Plan",
+        "purpose": "记录唯一变化、验证方式、接受/拒绝标准和结果要求；不是 workflow DAG。",
+        "primary_endpoint": "POST /api/v1/plans",
+        "list_endpoint": "GET /api/v1/plans",
+        "backing_collection": "protocols",
+    },
+    {
+        "id": "experiment",
+        "label": "Experiment",
+        "purpose": "记录外部 Runtime 的一次执行；平台不执行实验。",
+        "primary_endpoint": "POST /api/v1/research/sessions",
+        "list_endpoint": "GET /api/v1/research/experiments",
+        "backing_collection": "experiments",
+    },
+    {
+        "id": "result",
+        "label": "Result",
+        "purpose": "登记分数、日志、图表、badcase、commit、报告或论文草稿等外部结果引用。",
+        "primary_endpoint": "POST /api/v1/results",
+        "list_endpoint": "GET /api/v1/results",
+        "backing_collection": "artifacts",
+    },
+    {
+        "id": "review",
+        "label": "Review",
+        "purpose": "对 result 做解释、复盘、artifact-aware review 或质量缺口审计。",
+        "primary_endpoint": "POST /api/v1/reviews",
+        "list_endpoint": "GET /api/v1/reviews",
+        "backing_collection": "reviews",
+    },
+    {
+        "id": "decision",
+        "label": "Decision",
+        "purpose": "写入 keep、discard、continue、retry、blocked 或 archived 等迭代判断。",
+        "primary_endpoint": "POST /api/v1/decisions",
+        "list_endpoint": "GET /api/v1/decisions",
+        "backing_collection": "decisions",
+    },
+    {
+        "id": "lesson",
+        "label": "Lesson",
+        "purpose": "显式沉淀有来源追踪的可复用经验，指导下一轮 hypothesis 或 plan。",
+        "primary_endpoint": "POST /api/v1/experiences/curation/preview",
+        "list_endpoint": "GET /api/v1/lessons",
+        "backing_collection": "experiences",
+    },
+]
+
 
 def get_store() -> ResearchStore:
     from autoresearch_platform.main import store
@@ -279,6 +349,13 @@ def query_records(
             sort=sort,
         )
     )
+
+
+def attach_loop_metadata(payload: dict[str, Any], stage: str) -> dict[str, Any]:
+    metadata = dict(payload.get("metadata") or {})
+    metadata.setdefault("loop_stage", stage)
+    payload["metadata"] = metadata
+    return payload
 
 
 def _read_schema_contract() -> dict[str, Any]:
@@ -436,6 +513,7 @@ def build_agent_onboarding(store: ResearchStore, *, api_prefix: str, api_token: 
     }
     recommended_first_calls = [
         "GET /api/v1/agent/onboarding",
+        "GET /api/v1/method-loop",
         "GET /api/v1/system/security",
         "GET /api/v1/system/readiness",
         "GET /api/v1/capabilities",
@@ -2314,6 +2392,240 @@ def system_audit_log(
     store: ResearchStore = Depends(get_store),
 ) -> ApiEnvelope:
     return query_records(store, "logs", status=None, q=q, limit=limit, offset=offset, sort=sort)
+
+
+@router.get(
+    "/method-loop",
+    tags=["method-loop"],
+    response_model=ApiEnvelope,
+    summary="读取 AutoResearch 方法论闭环",
+    openapi_extra=agent_guidance(
+        when_to_use="外部 Runtime 首次接入或恢复研究前，读取 FARS/Karpathy 风格的 canonical 主路径和当前 API 映射。",
+        facts_from="method loop contract, store health",
+        next_steps=[
+            "POST /api/v1/ideas",
+            "POST /api/v1/hypotheses",
+            "POST /api/v1/plans",
+            "POST /api/v1/results",
+            "POST /api/v1/experiences/curation/preview",
+        ],
+        capability_group="method_loop",
+        safety_level="read",
+        safety="只读方法论和本平台 collection 计数，不执行实验、不读取外部 artifact。",
+        response_contract="返回 schema、loop、stages、counts、recommended_flow 和 safety。",
+    ),
+)
+def method_loop(store: ResearchStore = Depends(get_store)) -> ApiEnvelope:
+    collections = store.health().get("collections", {})
+    stages = []
+    for stage in METHOD_LOOP_STAGES:
+        stages.append(
+            {
+                **stage,
+                "count": collections.get(stage["backing_collection"], 0),
+            }
+        )
+    return envelope(
+        {
+            "schema": "autoresearch.method_loop.v1",
+            "loop": "Idea Pool -> Hypothesis -> Plan -> Experiment -> Result -> Review -> Decision -> Lesson -> Next Hypothesis",
+            "stages": stages,
+            "recommended_flow": [
+                "GET /api/v1/method-loop",
+                "POST /api/v1/ideas",
+                "POST /api/v1/hypotheses",
+                "POST /api/v1/plans",
+                "POST /api/v1/research/sessions",
+                "POST /api/v1/results",
+                "POST /api/v1/reviews",
+                "POST /api/v1/decisions",
+                "POST /api/v1/experiences/curation/preview",
+                "POST /api/v1/experiences/curation/apply",
+            ],
+            "safety": {
+                "executes_runtime": False,
+                "reads_external_artifacts": False,
+                "stores_large_payloads": False,
+            },
+        }
+    )
+
+
+@router.post(
+    "/ideas",
+    tags=["method-loop"],
+    response_model=ApiEnvelope,
+    summary="创建 idea pool 输入",
+    openapi_extra=agent_guidance(
+        when_to_use="写入论文、repo、benchmark gap、研究员想法、历史失败或外部观察，作为 hypothesis 来源。",
+        facts_from="external Runtime, researcher idea pool, papers, repos, benchmark gaps",
+        next_steps=["POST /api/v1/hypotheses", "GET /api/v1/method-loop"],
+        capability_group="method_loop",
+        response_contract="写入 sources backing collection，并标记 metadata.loop_stage=idea_pool。",
+    ),
+)
+def create_idea(payload: IdeaCreate, store: ResearchStore = Depends(get_store)) -> ApiEnvelope:
+    payload_data = attach_loop_metadata(payload.model_dump(), "idea_pool")
+    return envelope(store.create_record("sources", "idea", payload_data))
+
+
+@router.get(
+    "/ideas",
+    tags=["method-loop"],
+    response_model=ApiEnvelope,
+    summary="列出 idea pool 输入",
+    openapi_extra=agent_guidance(
+        when_to_use="恢复论文、repo、benchmark gap、研究员想法、历史失败和外部观察等假设来源。",
+        facts_from="sources backing collection",
+        capability_group="method_loop",
+        safety_level="read",
+        response_contract="返回标准 list envelope data: items,total,limit,offset,sort。",
+    ),
+)
+def list_ideas(
+    status: str | None = None,
+    q: str = "",
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    sort: str = "-created_at",
+    store: ResearchStore = Depends(get_store),
+) -> ApiEnvelope:
+    return query_records(store, "sources", status=status, q=q, limit=limit, offset=offset, sort=sort)
+
+
+@router.post(
+    "/plans",
+    tags=["method-loop"],
+    response_model=ApiEnvelope,
+    summary="创建最小研究计划",
+    openapi_extra=agent_guidance(
+        when_to_use="把 hypothesis 收敛成最小实验计划，声明唯一变化、验证方式、接受/拒绝标准和结果要求。",
+        facts_from="hypothesis, external Runtime planning",
+        next_steps=["POST /api/v1/research/sessions", "GET /api/v1/research/design/audit"],
+        capability_group="method_loop",
+        response_contract="写入 protocols backing collection，并标记 metadata.loop_stage=plan。",
+    ),
+)
+def create_plan(payload: PlanCreate, store: ResearchStore = Depends(get_store)) -> ApiEnvelope:
+    payload_data = payload.model_dump()
+    if payload_data.get("hypothesis_id"):
+        require_record(store.get_record("hypotheses", payload_data["hypothesis_id"]), payload_data["hypothesis_id"])
+    payload_data["artifact_requirements"] = payload_data.get("artifact_requirements") or payload_data.get("result_requirements", [])
+    payload_data = attach_loop_metadata(payload_data, "plan")
+    return envelope(store.create_record("protocols", "plan", payload_data))
+
+
+@router.get(
+    "/plans",
+    tags=["method-loop"],
+    response_model=ApiEnvelope,
+    summary="列出最小研究计划",
+    openapi_extra=agent_guidance(
+        when_to_use="查找外部 Runtime 已登记的 plan、验证合同和结果要求。",
+        facts_from="protocols backing collection",
+        capability_group="method_loop",
+        safety_level="read",
+        response_contract="返回标准 list envelope data: items,total,limit,offset,sort。",
+    ),
+)
+def list_plans(
+    status: str | None = None,
+    q: str = "",
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    sort: str = "-created_at",
+    store: ResearchStore = Depends(get_store),
+) -> ApiEnvelope:
+    return query_records(store, "protocols", status=status, q=q, limit=limit, offset=offset, sort=sort)
+
+
+@router.post(
+    "/results",
+    tags=["method-loop"],
+    response_model=ApiEnvelope,
+    summary="创建结果引用",
+    openapi_extra=agent_guidance(
+        when_to_use="外部 Runtime 完成实验、benchmark、复现、仿真或文献验证后，登记分数、日志、图表、badcase、commit 或报告引用。",
+        facts_from="external Runtime result package",
+        next_steps=["POST /api/v1/evidence-records", "POST /api/v1/reviews", "POST /api/v1/decisions"],
+        capability_group="method_loop",
+        safety="只登记外部 result 引用和轻量 metadata，不保存大文件、原文或 checkpoint。",
+        response_contract="写入 artifacts backing collection，并标记 metadata.loop_stage=result。",
+    ),
+)
+def create_result(payload: ResultCreate, store: ResearchStore = Depends(get_store)) -> ApiEnvelope:
+    payload_data = payload.model_dump()
+    artifact_payload = {
+        "artifact_type": payload_data.pop("result_type"),
+        "title": payload_data.pop("title"),
+        "summary": payload_data.pop("summary"),
+        "uri": payload_data.pop("uri"),
+        "sha256": payload_data.pop("sha256"),
+        "mime_type": payload_data.pop("mime_type"),
+        "size_bytes": payload_data.pop("size_bytes"),
+        "storage": payload_data.pop("storage"),
+        "source_refs": payload_data.pop("source_refs"),
+        "payload": {
+            "metrics": payload_data.pop("metrics"),
+            "artifact_refs": payload_data.pop("artifact_refs"),
+            "experiment_id": payload_data.pop("experiment_id"),
+            "run_id": payload_data.pop("run_id"),
+        },
+        "metadata": payload_data.pop("metadata"),
+    }
+    artifact_payload = attach_loop_metadata(artifact_payload, "result")
+    validate_artifact_reference(artifact_payload)
+    return envelope(store.create_record("artifacts", "result", artifact_payload))
+
+
+@router.get(
+    "/results",
+    tags=["method-loop"],
+    response_model=ApiEnvelope,
+    summary="列出结果引用",
+    openapi_extra=agent_guidance(
+        when_to_use="查看分数、日志、图表、badcase、commit、报告或论文草稿等外部结果引用。",
+        facts_from="artifacts backing collection",
+        capability_group="method_loop",
+        safety_level="read",
+        response_contract="返回标准 list envelope data: items,total,limit,offset,sort。",
+    ),
+)
+def list_results(
+    status: str | None = None,
+    q: str = "",
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    sort: str = "-created_at",
+    store: ResearchStore = Depends(get_store),
+) -> ApiEnvelope:
+    return query_records(store, "artifacts", status=status, q=q, limit=limit, offset=offset, sort=sort)
+
+
+@router.get(
+    "/lessons",
+    tags=["method-loop"],
+    response_model=ApiEnvelope,
+    summary="列出经验 lessons",
+    openapi_extra=agent_guidance(
+        when_to_use="按方法论闭环读取已沉淀 lessons。写入仍必须走 experiences curation preview/apply。",
+        facts_from="experiences backing collection",
+        next_steps=["POST /api/v1/experiences/curation/preview", "POST /api/v1/experiences/curation/apply"],
+        capability_group="method_loop",
+        safety_level="read",
+        safety="只读经验；平台不从 ledger 自动抽取 lesson。",
+        response_contract="返回标准 list envelope data: items,total,limit,offset,sort。",
+    ),
+)
+def list_lessons(
+    status: str | None = None,
+    q: str = "",
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    sort: str = "-created_at",
+    store: ResearchStore = Depends(get_store),
+) -> ApiEnvelope:
+    return query_records(store, "experiences", status=status, q=q, limit=limit, offset=offset, sort=sort)
 
 
 @router.post(

@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useState } from 'react'
 import { Button, ErrorMessage, Panel, RecordList, SelectInput, StatusBadge, TextArea, TextInput, WarningList } from '@/components/Primitives'
 import { getData, getListData, postData, patchData, type RecordItem } from '@/lib/api'
+import { formatHumanText } from '@/lib/display'
 
 type SessionDetail = {
   session: RecordItem
@@ -16,7 +17,7 @@ export function SessionsPage() {
   const [title, setTitle] = useState('')
   const sessions = useQuery({ queryKey: ['sessions'], queryFn: () => getListData<RecordItem>('/api/v1/research/sessions') })
   const create = useMutation({
-    mutationFn: () => postData('/api/v1/research/sessions', { title, memory_context: {}, information_gain: 'new session' }),
+    mutationFn: () => postData('/api/v1/research/sessions', { title, memory_context: {}, information_gain: '新研究账本' }),
     onSuccess: () => {
       setTitle('')
       queryClient.invalidateQueries({ queryKey: ['sessions'] })
@@ -77,7 +78,7 @@ export function SessionDetailPage() {
     onSuccess: () => { setExperiment(''); refresh() },
   })
   const addArtifact = useMutation({
-    mutationFn: () => postData(`/api/v1/research/sessions/${id}/artifacts`, { artifact_type: 'report', title: artifactTitle, summary: 'frontend registered artifact' }),
+    mutationFn: () => postData(`/api/v1/research/sessions/${id}/artifacts`, { artifact_type: 'report', title: artifactTitle, summary: '前端登记成果引用' }),
     onSuccess: () => { setArtifactTitle(''); refresh() },
   })
   const close = useMutation({
@@ -86,7 +87,7 @@ export function SessionDetailPage() {
       retrospective: {
         failed_attempts: [],
         platform_gaps: [],
-        next_agent_one_liner: '继续从本 session 的 artifact 和实验结论出发。',
+        next_agent_one_liner: '继续从本账本的成果引用和实验结论出发。',
       },
     }),
     onSuccess: refresh,
@@ -94,7 +95,7 @@ export function SessionDetailPage() {
 
   const firstExperiment = detail.data?.experiments[0]
   const degrade = useMutation({
-    mutationFn: () => firstExperiment ? patchData(`/api/v1/research/sessions/${id}/experiments/${firstExperiment.id}`, { status: 'degraded', result_summary: 'frontend marked degraded' }) : Promise.resolve(null),
+    mutationFn: () => firstExperiment ? patchData(`/api/v1/research/sessions/${id}/experiments/${firstExperiment.id}`, { status: 'degraded', result_summary: '前端标记为降级' }) : Promise.resolve(null),
     onSuccess: refresh,
   })
   const detailWarnings = [
@@ -116,8 +117,8 @@ export function SessionDetailPage() {
       <Panel title={detail.data?.session.title ? String(detail.data.session.title) : '研究账本'}>
         <div className="detail-grid">
           <div><strong>状态</strong><StatusBadge status={typeof detail.data?.session.status === 'string' ? detail.data.session.status : undefined} /></div>
-          <div><strong>ID</strong><span>{id}</span></div>
-          <div><strong>信息增量</strong><span>{String(detail.data?.session.information_gain || '')}</span></div>
+          <div><strong>标识</strong><span>{id}</span></div>
+          <div><strong>信息增量</strong><span>{formatHumanText(detail.data?.session.information_gain || '')}</span></div>
         </div>
         <Button type="button" onClick={() => close.mutate()}>关闭账本</Button>
         <WarningList warnings={detailWarnings} />
@@ -135,7 +136,7 @@ export function SessionDetailPage() {
                 { value: 'decision', label: '决策' },
                 { value: 'tool_run', label: '工具运行' },
                 { value: 'human_instruction', label: '外部指令' },
-                { value: 'runtime_event', label: '外部 Runtime 事件' },
+                { value: 'runtime_event', label: '外部运行事件' },
                 { value: 'blocker', label: '阻塞' },
               ]}
             />

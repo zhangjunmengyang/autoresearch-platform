@@ -9,11 +9,13 @@ const pageConfig = readFileSync(resolve(root, 'lib/page-config.ts'), 'utf8')
 const appShell = readFileSync(resolve(root, 'components/AppShell.tsx'), 'utf8')
 const primitives = readFileSync(resolve(root, 'components/Primitives.tsx'), 'utf8')
 const globals = readFileSync(resolve(root, 'styles/globals.css'), 'utf8')
+const dashboardPage = readFileSync(resolve(root, 'pages/Dashboard.tsx'), 'utf8')
 const experiencesPage = readFileSync(resolve(root, 'pages/Experiences.tsx'), 'utf8')
 const reviewsPage = readFileSync(resolve(root, 'pages/Reviews.tsx'), 'utf8')
 const evidencePage = readFileSync(resolve(root, 'pages/Evidence.tsx'), 'utf8')
 const artifactsPage = readFileSync(resolve(root, 'pages/Artifacts.tsx'), 'utf8')
 const auditPage = readFileSync(resolve(root, 'pages/Audit.tsx'), 'utf8')
+const researchWorkbenchPage = readFileSync(resolve(root, 'pages/ResearchWorkbench.tsx'), 'utf8')
 const researchContextPage = readFileSync(resolve(root, 'pages/ResearchContext.tsx'), 'utf8')
 const researchReadinessPage = readFileSync(resolve(root, 'pages/ResearchReadiness.tsx'), 'utf8')
 const researchRoundsPage = readFileSync(resolve(root, 'pages/ResearchRounds.tsx'), 'utf8')
@@ -31,6 +33,7 @@ for (const route of [
   '/dashboard',
   '/sources',
   '/insights',
+  '/research',
   '/research/methodology',
   '/research-queue',
   '/research/context',
@@ -53,21 +56,8 @@ for (const route of [
 
 const allowedNavPaths = new Set([
   '/dashboard',
-  '/sources',
-  '/insights',
-  '/research/methodology',
-  '/research-queue',
-  '/research/context',
-  '/research/readiness',
-  '/research/rounds',
-  '/sessions',
-  '/research/audit',
-  '/evidence',
+  '/research',
   '/artifacts',
-  '/benchmarks',
-  '/reviews',
-  '/decisions',
-  '/knowledge/experiences',
   '/capabilities',
   '/status',
 ])
@@ -77,8 +67,39 @@ for (const navPath of navPaths) {
   assert(allowedNavPaths.has(navPath), `unknown navigation path ${navPath}`)
 }
 
-for (const label of ['总览看板', '资料输入', '洞察与假设', '科研方法论', '研究队列', '研究上下文', '就绪检查', '研究轮次', '研究账本', '过程审计', '证据记录', '成果引用', '评测登记', '审查事件', '决策记录', '长期经验', '能力目录', '系统状态']) {
+for (const label of ['自动研究看板', '研究运行', '成果', '能力目录', '系统状态']) {
   assert(pageConfig.includes(label), `missing nav label ${label}`)
+}
+
+const visibleNavLabels = [...pageConfig.matchAll(/label: '([^']+)'/g)].map((match) => match[1])
+assert.deepEqual(visibleNavLabels, ['自动研究看板', '研究运行', '成果', '能力目录', '系统状态'], 'visible navigation should stay Chinese observer-first')
+for (const hiddenResearchLabel of ['FARS 看板', 'Research Runs 运行', 'Outputs 成果', 'Idea Pool 想法池', 'Hypothesis 假设', 'Plan / Experiment 计划实验', 'Experiment 账本', 'Review / Decision 复盘决策', 'Lesson 经验', '评测登记', '审查事件', '决策记录']) {
+  assert(!visibleNavLabels.includes(hiddenResearchLabel), `form-first entry leaked into main nav: ${hiddenResearchLabel}`)
+}
+
+for (const hiddenPath of ['/sources', '/insights', '/research/methodology', '/sessions', '/evidence', '/decisions', '/knowledge/experiences', '/benchmarks', '/reviews']) {
+  assert(!navPaths.includes(hiddenPath), `form-first path leaked into visible nav: ${hiddenPath}`)
+  assert(!researchWorkbenchPage.includes(`to="${hiddenPath}"`) && !researchWorkbenchPage.includes(`path: '${hiddenPath}'`), `form-first path leaked into research workbench: ${hiddenPath}`)
+}
+
+for (const diagnosticPath of ['/research/context', '/research/readiness', '/research/audit', '/capabilities', '/status']) {
+  assert(researchWorkbenchPage.includes(diagnosticPath), `research workbench should expose diagnostic path ${diagnosticPath}`)
+}
+
+for (const surfaceLabel of ['自动研究部署', '研究运行', '成果', '流水线快照', '运行合同']) {
+  assert(researchWorkbenchPage.includes(surfaceLabel), `research workbench missing observer surface ${surfaceLabel}`)
+}
+
+for (const loopLabel of ['构想', '计划', '实验', '写作', '审查', '决策']) {
+  assert(dashboardPage.includes(loopLabel), `dashboard missing Chinese stage ${loopLabel}`)
+  assert(researchWorkbenchPage.includes(loopLabel), `research workbench missing Chinese stage ${loopLabel}`)
+}
+
+for (const forbiddenVisibleTerm of ['写入', '登记', '创建', '人工', '账本', '评测登记', 'FARS', 'Research Runs', 'Outputs', 'DEPLOYMENTS', 'PIPELINE', 'CONTRACT', 'Ideation', 'Planning', 'Experimentation', 'Writing', 'Review', 'Decision', 'Runtime', 'OpenAPI', 'REST']) {
+  assert(!pageConfig.includes(forbiddenVisibleTerm), `form-first term leaked into visible nav: ${forbiddenVisibleTerm}`)
+  assert(!dashboardPage.includes(forbiddenVisibleTerm), `form-first term leaked into dashboard: ${forbiddenVisibleTerm}`)
+  assert(!researchWorkbenchPage.includes(forbiddenVisibleTerm), `form-first term leaked into research workbench: ${forbiddenVisibleTerm}`)
+  assert(!appShell.includes(forbiddenVisibleTerm), `form-first term leaked into app shell: ${forbiddenVisibleTerm}`)
 }
 
 const navLabels = [...pageConfig.matchAll(/label: '([^']+)'/g)].map((match) => match[1])
@@ -98,7 +119,7 @@ for (const forbidden of ['/knowledge/graph', '科研图谱', '/api/v1/graph', '/
 
 assert(!pages.includes('Graph.tsx'), 'graph page should not be part of the core workbench')
 
-for (const required of ['Dashboard.tsx', 'Audit.tsx', 'Artifacts.tsx', 'Benchmarks.tsx', 'Decisions.tsx', 'Evidence.tsx', 'Experiences.tsx', 'Methodology.tsx', 'ResearchContext.tsx', 'ResearchReadiness.tsx', 'ResearchRounds.tsx', 'Reviews.tsx']) {
+for (const required of ['Dashboard.tsx', 'Audit.tsx', 'Artifacts.tsx', 'Benchmarks.tsx', 'Decisions.tsx', 'Evidence.tsx', 'Experiences.tsx', 'Methodology.tsx', 'ResearchContext.tsx', 'ResearchReadiness.tsx', 'ResearchRounds.tsx', 'ResearchWorkbench.tsx', 'Reviews.tsx']) {
   assert(pages.includes(required), `missing page ${required}`)
 }
 
@@ -112,6 +133,7 @@ assert(experiencesPage.includes('来源追踪'), 'experience preview does not re
 assert(experiencesPage.includes('治理缺口'), 'experience preview does not render governance gaps')
 assert(experiencesPage.includes('建议动作'), 'experience preview does not render recommended next actions')
 assert(reviewsPage.includes('review.subject'), 'reviews page does not render reviewed subject')
+assert(artifactsPage.includes('/api/v1/results'), 'result page does not query canonical results endpoint')
 assert(artifactsPage.includes('/api/v1/artifacts/audit'), 'artifacts page does not query artifact audit')
 assert(artifactsPage.includes('审计状态'), 'artifacts page does not render artifact audit state')
 assert(artifactsPage.includes('元数据缺口'), 'artifacts page does not render artifact metadata issues')
@@ -157,6 +179,7 @@ assert(researchRoundsPage.includes('工作树'), 'research rounds page does not 
 assert(researchRoundsPage.includes('提交'), 'research rounds page does not render commit references in Chinese')
 assert(researchRoundsPage.includes('roundBranch'), 'research rounds completion does not preserve the round branch reference')
 assert(methodologyPage.includes('/api/v1/research/design/audit'), 'methodology page does not query design audit')
+assert(methodologyPage.includes('/api/v1/plans'), 'methodology page does not query canonical plans endpoint')
 assert(methodologyPage.includes('/api/v1/research/method-templates'), 'methodology page does not query method templates')
 assert(methodologyPage.includes('方法模板'), 'methodology page does not render method templates')
 assert(methodologyPage.includes('复现实验'), 'methodology page does not render reproduction template')
@@ -193,8 +216,8 @@ assert(statusPage.includes('认证与审计'), 'status page does not render secu
 assert(statusPage.includes('公开入口'), 'status page does not render public endpoints')
 assert(statusPage.includes('审计策略'), 'status page does not render audit policy')
 assert(capabilitiesPage.includes('/api/v1/agent/onboarding'), 'capabilities page does not query agent onboarding bundle')
-assert(capabilitiesPage.includes('Agent 接入自检'), 'capabilities page does not render agent onboarding status')
-assert(capabilitiesPage.includes('Skill 加载顺序'), 'capabilities page does not render skill loading order')
+assert(capabilitiesPage.includes('智能体接入自检'), 'capabilities page does not render agent onboarding status')
+assert(capabilitiesPage.includes('技能加载顺序'), 'capabilities page does not render skill loading order')
 assert(capabilitiesPage.includes('建议首批调用'), 'capabilities page does not render recommended first calls')
 assert(capabilitiesPage.includes('只读边界'), 'capabilities page does not render onboarding integrity boundary')
 

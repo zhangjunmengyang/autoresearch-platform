@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { ErrorMessage, Panel, StatusBadge, TextInput } from '@/components/Primitives'
 import { getData, type RecordItem } from '@/lib/api'
+import { formatHumanText, labelTerm } from '@/lib/display'
 
 type ContextAction = {
   endpoint: string
@@ -75,6 +76,13 @@ const stanceLabels: Record<string, string> = {
   fails_to_replicate: '复现失败',
 }
 
+const confidenceLabels: Record<string, string> = {
+  high: '高',
+  medium: '中',
+  low: '低',
+  unknown: '未记录',
+}
+
 function statusForContext(state?: string) {
   if (state === 'ready_for_review') return 'completed'
   if (state === 'needs_recovery' || state === 'contested') return 'degraded'
@@ -82,7 +90,7 @@ function statusForContext(state?: string) {
 }
 
 function recordTitle(item: RecordItem) {
-  return String(item.title || item.name || item.hypothesis || item.question || item.id)
+  return formatHumanText(item.title || item.name || item.hypothesis || item.question || item.id)
 }
 
 export function ResearchContextPage() {
@@ -102,11 +110,11 @@ export function ResearchContextPage() {
     <div className="grid-two">
       <Panel title="恢复上下文">
         <form className="form" onSubmit={(event) => event.preventDefault()}>
-          <TextInput label="关键词" value={query} onChange={setQuery} placeholder="研究主题、方法、artifact、阻塞或实验关键词" />
+          <TextInput label="关键词" value={query} onChange={setQuery} placeholder="研究主题、方法、成果、阻塞或实验关键词" />
           <TextInput label="证据主张" value={claim} onChange={setClaim} placeholder="可选：完整科研主张，用于证据概览" />
         </form>
         <div className="detail-grid">
-          <div><strong>{stateLabels[data?.state || ''] || data?.state || '待查询'}</strong><span>上下文状态</span></div>
+          <div><strong>{data?.state ? stateLabels[data.state] || labelTerm(data.state) : '待查询'}</strong><span>上下文状态</span></div>
           <div><strong>{data?.risk_flags.length || 0}</strong><span>风险数量</span></div>
           <div><strong>{data?.recommended_next_actions.length || 0}</strong><span>建议动作</span></div>
         </div>
@@ -118,8 +126,8 @@ export function ResearchContextPage() {
           {(data?.recommended_next_actions || []).map((action) => (
             <article className="record-row" key={`${action.endpoint}-${action.reason}`}>
               <div>
-                <div className="record-title">{action.endpoint}</div>
-                <div className="record-meta">{action.reason}</div>
+                <div className="record-title">建议动作</div>
+                <div className="record-meta">{formatHumanText(action.reason || '未记录原因')}</div>
               </div>
               <StatusBadge status={action.priority === 'high' ? 'blocked' : 'planned'} />
             </article>
@@ -141,13 +149,13 @@ export function ResearchContextPage() {
           <div className="record-list">
             <article className="record-row">
               <div>
-                <div className="record-title">{stateLabels[data.evidence_summary.state] || data.evidence_summary.state}</div>
+                <div className="record-title">{stateLabels[data.evidence_summary.state] || labelTerm(data.evidence_summary.state)}</div>
                 <div className="record-meta">证据数量 {data.evidence_summary.total}</div>
                 <div className="record-meta">
-                  {Object.entries(data.evidence_summary.stances).map(([key, value]) => `${stanceLabels[key] || key} ${value}`).join('，')}
+                  {Object.entries(data.evidence_summary.stances).map(([key, value]) => `${stanceLabels[key] || labelTerm(key)} ${value}`).join('，')}
                 </div>
                 <div className="record-meta">
-                  置信度 {Object.entries(data.evidence_summary.confidence).map(([key, value]) => `${key} ${value}`).join('，') || '未记录'}
+                  置信度 {Object.entries(data.evidence_summary.confidence).map(([key, value]) => `${confidenceLabels[key] || labelTerm(key)} ${value}`).join('，') || '未记录'}
                 </div>
               </div>
               <StatusBadge status={statusForContext(data.evidence_summary.state)} />
@@ -161,8 +169,8 @@ export function ResearchContextPage() {
           {(data?.risk_flags || []).map((flag) => (
             <article className="record-row" key={`${flag.collection}-${flag.id}`}>
               <div>
-                <div className="record-title">{flag.title}</div>
-                <div className="record-meta">{sectionLabels[flag.collection] || flag.collection} · {flag.kind} · {flag.id}</div>
+                <div className="record-title">{formatHumanText(flag.title)}</div>
+                <div className="record-meta">{sectionLabels[flag.collection] || labelTerm(flag.collection)} · {labelTerm(flag.kind)} · {flag.id}</div>
               </div>
               <StatusBadge status={flag.status} />
             </article>
@@ -176,7 +184,7 @@ export function ResearchContextPage() {
           {visibleSections.slice(0, 8).map(([section, items]) => (
             <article className="record-row" key={section}>
               <div>
-                <div className="record-title">{sectionLabels[section] || section}</div>
+                <div className="record-title">{sectionLabels[section] || labelTerm(section)}</div>
                 <div className="record-meta">
                   {items.slice(0, 3).map((item) => `${recordTitle(item)} (${item.id})`).join('，')}
                 </div>

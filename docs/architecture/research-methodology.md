@@ -1,32 +1,29 @@
 # Research Methodology
 
-每个正式研究都遵循:
+正式研究遵循一个可迭代闭环:
 
-1. 先查历史经验和失败路线。
-2. 读取研究上下文恢复包，确认已有事实、风险、证据状态和建议下一步。
-3. 写清外部约束和本轮信息增量；人工输入只作为模糊目标或审批 provenance。
-4. 新方案登记 research round；如果涉及代码或实验配置，外部 Runtime 在自己的环境中创建 worktree/branch，并只把引用写回平台。
-5. 继续已有方案时读取 round trace pack，确认已解析引用、warnings 和 `unresolved_refs`。
-6. 新建方法卡或协议前读取 method templates，选择文献综合、复现、消融、评测对比或失败分析等通用设计模板。
-7. 在 intake 或实验前运行 research design audit，确认问题可回答、假设可证伪、协议包含对照和 artifact 要求。
-8. 在实验、审查、决策和经验维护前运行 readiness check；`blocked` 代表必须先修复缺口。
-9. 将论文、资料、目标输入、artifact 引用或外部 Runtime 输入作为 source 留痕。
-10. 从 source 产生 insight，再转成 hypothesis。
-11. 每个实验只验证一个机制，先写 expected effect、acceptance criteria 和 rejection criteria。
-12. benchmark 和实验由外部 Runtime 执行；运行 benchmark 前先审计 suite 合同，平台只接收 adapter 合同、结果和 artifact 引用。
-13. benchmark/artifact 后先写 evidence record，再查询 evidence summary，之后进入 review、review audit、decision 和 curation。
-14. 收尾必须记录 failed attempts、platform gaps、validated lessons 和 next agent one-liner。
-15. 长期经验必须能让没参与本轮研究的 Agent 直接接手。
+```text
+Idea Pool -> Hypothesis -> Plan -> Experiment -> Result -> Review -> Decision -> Lesson -> Next Hypothesis
+```
+
+1. **Idea Pool**: 先查论文、repo、数据集、benchmark gap、研究员想法、历史失败、外部观察和长期经验。
+2. **Hypothesis**: 把 idea 收敛成一个可验证假设，写清 expected effect、接受标准和拒绝标准。
+3. **Plan**: 写最小实验计划，只验证一个机制，声明唯一变化、对照、结果要求和阻塞条件。
+4. **Experiment**: 外部 Runtime 在自己的环境中运行实验、benchmark、复现、仿真、文献验证或代码实验；平台只保存执行引用和状态。
+5. **Result**: 平台接收分数、日志、图表、badcase、commit、报告或论文草稿等外部 artifact 引用和轻量摘要。
+6. **Review**: 对 result 做解释、复盘、artifact-aware review、复现检查或质量缺口审计；`blocked` 和 `degraded` 是合法结果。
+7. **Decision**: 写入 `keep`、`discard`、`continue`、`retry`、`blocked` 或 `archived` 等判断，不伪造成完成。
+8. **Lesson**: 只有明确来源和证据的经验才能通过 preview/apply 显式沉淀，并用于下一轮 hypothesis 或 plan。
 
 ## 方法论对象
 
-正式研究的设计链路是:
+当前 API 对这个闭环的实现映射是:
 
 ```text
-经验查询 -> 上下文恢复 -> 研究轮次 -> 追踪包校验 -> 就绪检查 -> 研究计划 -> 研究问题 -> 方法卡 -> 实验协议 -> 研究队列 -> 研究账本 -> 实验结果/artifact -> 证据记录 -> 证据概览 -> 审查 -> 决策 -> 经验维护
+experiences/context/ideas -> hypotheses -> plans -> sessions/rounds/experiments -> results/benchmark runs -> evidence/reviews -> decisions -> experiences
 ```
 
-研究计划记录长期目标、领域和硬约束。研究问题记录可回答问题和成功标准。`GET /api/v1/research/method-templates` 返回只读方法模板目录，覆盖文献综合、复现实验、消融实验、评测对比和失败分析。模板用于帮助外部 Runtime 准备方法卡、协议、artifact 要求、证据期望和审查门，不是实验设计生成器，也不会创建工作流或执行 benchmark。方法卡记录某类方法的适用场景、失败模式和所需 artifact。实验协议记录问题、方法、唯一变化、对照、接受标准和拒绝标准。
+研究计划、研究问题和方法卡是高级治理对象，不是主路径入口。`GET /api/v1/research/method-templates` 返回只读方法模板目录，覆盖文献综合、复现实验、消融实验、评测对比和失败分析。模板用于帮助外部 Runtime 准备 plan、artifact 要求、review gate 和 lesson 来源，不是实验设计生成器，也不会创建工作流或执行 benchmark。实验协议记录问题、方法、唯一变化、对照、接受标准和拒绝标准。
 
 `protocol` 是预注册对象，不是可执行 DAG。平台不得根据协议执行实验、调模型、运行 benchmark 或编排 agent loop；外部 Runtime 只能读取协议并在自己的执行环境中运行实验，再把结果和 artifact 引用写回平台。
 

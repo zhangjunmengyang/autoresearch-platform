@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Button, ErrorMessage, Panel, SelectInput, StatusBadge, TextArea, TextInput } from '@/components/Primitives'
 import { getListData, postData, type RecordItem } from '@/lib/api'
+import { formatHumanText, labelRecordType } from '@/lib/display'
 
 const subjectTypes = [
   { value: 'hypothesis', label: '假设' },
@@ -72,11 +73,11 @@ export function DecisionsPage() {
       <Panel title="创建决策">
         <form className="form" onSubmit={(event) => { event.preventDefault(); create.mutate() }}>
           <SelectInput label="对象类型" value={subjectType} onChange={setSubjectType} options={subjectTypes} />
-          <TextInput label="对象 ID" value={subjectId} onChange={setSubjectId} placeholder="hypothesis_ / experiment_ / benchrun_" />
+          <TextInput label="对象标识" value={subjectId} onChange={setSubjectId} placeholder="假设、实验或评测运行记录标识" />
           <SelectInput label="决策" value={decision} onChange={setDecision} options={decisionOptions} />
           <TextArea label="判断依据" value={rationale} onChange={setRationale} placeholder="说明证据、取舍、风险和后续动作" />
           <SelectInput label="证据类型" value={evidenceType} onChange={setEvidenceType} options={evidenceTypes} />
-          <TextInput label="证据 ID" value={evidenceId} onChange={setEvidenceId} placeholder="review_ / benchrun_ / artifact_" />
+          <TextInput label="证据标识" value={evidenceId} onChange={setEvidenceId} placeholder="审查、评测运行或成果记录标识" />
           <TextInput label="下一步" value={nextStep} onChange={setNextStep} placeholder="可选：继续复现、补充对照、归档主题" />
           <Button type="submit" disabled={!subjectId || !rationale || !evidenceId}>写入决策</Button>
         </form>
@@ -95,11 +96,11 @@ export function DecisionsPage() {
             return (
               <article className="record-row" key={decisionRecord.id}>
                 <div>
-                  <div className="record-title">{subject?.type || '对象'} · {subject?.id || decisionRecord.id}</div>
+                  <div className="record-title">{subject?.type ? labelRecordType(subject.type) : '对象'} · {subject?.id || decisionRecord.id}</div>
                   <div className="record-meta">决策 {decisionLabels[String(decisionRecord.decision)] || String(decisionRecord.decision || '')}</div>
-                  <div className="record-meta">依据 {String(decisionRecord.rationale || '')}</div>
-                  <div className="record-meta">证据 {evidenceRefs.map((ref) => `${ref.type || '证据'}:${ref.id || ''}`).join('，') || '未记录'}</div>
-                  {nextSteps.length ? <div className="record-meta">下一步 {nextSteps.join('，')}</div> : null}
+                  <div className="record-meta">依据 {formatHumanText(decisionRecord.rationale || '')}</div>
+                  <div className="record-meta">证据 {evidenceRefs.map((ref) => `${labelRecordType(ref.type)}：${ref.id || ''}`).join('，') || '未记录'}</div>
+                  {nextSteps.length ? <div className="record-meta">下一步 {nextSteps.map((step) => formatHumanText(step)).join('，')}</div> : null}
                 </div>
                 <StatusBadge status={typeof decisionRecord.status === 'string' ? decisionRecord.status : undefined} />
               </article>
