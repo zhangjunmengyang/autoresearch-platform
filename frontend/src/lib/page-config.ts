@@ -10,10 +10,10 @@ export const navGroups = [
   {
     title: '运行',
     items: [
-      { path: '/dashboard', label: 'FARS 看板', icon: LayoutDashboard },
+      { path: '/dashboard', label: '自动研究看板', icon: LayoutDashboard },
       {
         path: '/research',
-        label: 'Research Runs 运行',
+        label: '研究运行',
         icon: ListChecks,
         activePaths: [
           '/sources',
@@ -29,7 +29,7 @@ export const navGroups = [
       },
       {
         path: '/artifacts',
-        label: 'Outputs 成果',
+        label: '成果',
         icon: FileText,
         activePaths: ['/artifacts', '/benchmarks', '/reviews', '/decisions'],
       },

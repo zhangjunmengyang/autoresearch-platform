@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Button, ErrorMessage, Panel, RecordList, StatusBadge, TextArea, TextInput } from '@/components/Primitives'
 import { getData, getListData, postData, type RecordItem } from '@/lib/api'
+import { formatHumanText, labelTerm } from '@/lib/display'
 
 type DesignAuditItem = {
   id: string
@@ -90,9 +91,26 @@ const templateTitleLabels: Record<string, string> = {
   failure_analysis: '失败分析',
 }
 
+const contractValueLabels: Record<string, string> = {
+  评测对比: 'benchmark_comparison',
+  消融实验: 'ablation',
+  复现实验: 'reproduction',
+  文献综合: 'literature_synthesis',
+  失败分析: 'failure_analysis',
+  分数报告: 'score_report',
+  失败样本摘要: 'badcase_summary',
+  运行日志: 'run_log',
+  评测结果: 'benchmark_result',
+}
+
+function toContractValue(value: string) {
+  const trimmed = value.trim()
+  return contractValueLabels[trimmed] || trimmed
+}
+
 function formatIssueCounts(counts?: Record<string, number>) {
   if (!counts || !Object.keys(counts).length) return '无缺口'
-  return Object.entries(counts).map(([key, value]) => `${issueLabels[key] || key} ${value}`).join('，')
+  return Object.entries(counts).map(([key, value]) => `${issueLabels[key] || labelTerm(key)} ${value}`).join('，')
 }
 
 function formatContractSummary(summary: Record<string, unknown>) {
@@ -102,12 +120,12 @@ function formatContractSummary(summary: Record<string, unknown>) {
     const label = summaryLabels[key] || key
     if (typeof value === 'boolean') return `${label}：${value ? '是' : '否'}`
     if (value === '') return `${label}：未填写`
-    return `${label}：${String(value)}`
+    return `${label}：${formatHumanText(value)}`
   }).join('，')
 }
 
 function formatList(values?: string[]) {
-  return values?.length ? values.join('，') : '无'
+  return values?.length ? values.map(labelTerm).join('，') : '无'
 }
 
 function renderAuditItem(item: DesignAuditItem, fallbackTitle: string) {
@@ -118,7 +136,7 @@ function renderAuditItem(item: DesignAuditItem, fallbackTitle: string) {
         <div className="record-title">{item.title || item.question || item.question_id || fallbackTitle}</div>
         <div className="record-meta">{item.id}</div>
         <div className="record-meta">合同 {formatContractSummary(summary)}</div>
-        {item.issues.length ? <div className="record-meta">质量缺口 {item.issues.map((issue) => issueLabels[issue.code] || issue.message).join('；')}</div> : null}
+        {item.issues.length ? <div className="record-meta">质量缺口 {item.issues.map((issue) => issueLabels[issue.code] || formatHumanText(issue.message)).join('；')}</div> : null}
       </div>
       <StatusBadge status={item.state} />
     </article>
@@ -141,8 +159,8 @@ export function MethodologyPage() {
   const [planHypothesisId, setPlanHypothesisId] = useState('')
   const [planObjective, setPlanObjective] = useState('')
   const [planOneChange, setPlanOneChange] = useState('')
-  const [planValidationMethod, setPlanValidationMethod] = useState('benchmark_comparison')
-  const [planResultRequirements, setPlanResultRequirements] = useState('score_report\nbadcase_summary')
+  const [planValidationMethod, setPlanValidationMethod] = useState('评测对比')
+  const [planResultRequirements, setPlanResultRequirements] = useState('分数报告\n失败样本摘要')
 
   const plans = useQuery({ queryKey: ['plans'], queryFn: () => getListData<RecordItem>('/api/v1/plans') })
   const programs = useQuery({ queryKey: ['research-programs'], queryFn: () => getListData<RecordItem>('/api/v1/research/programs') })
@@ -169,11 +187,11 @@ export function MethodologyPage() {
       hypothesis_id: planHypothesisId || undefined,
       objective: planObjective,
       one_change: planOneChange,
-      validation_method: planValidationMethod,
+      validation_method: toContractValue(planValidationMethod),
       controls: ['当前基线'],
       acceptance_criteria: { measurable_improvement: true },
       rejection_criteria: { no_traceable_result: true },
-      result_requirements: planResultRequirements.split('\n').map((item) => item.trim()).filter(Boolean),
+      result_requirements: planResultRequirements.split('\n').map(toContractValue).filter(Boolean),
     }),
     onSuccess: () => {
       setPlanTitle('')
@@ -235,23 +253,23 @@ export function MethodologyPage() {
   function applyTemplate(template: MethodTemplate) {
     setMethodName(templateTitleLabels[template.id] || template.title)
     setFailureModes([
-      ...template.design_questions.map((question) => `待回答：${question}`),
-      ...template.review_gates.map((gate) => `审查门：${gate}`),
+      ...template.design_questions.map((question) => `待回答：${formatHumanText(question)}`),
+      ...template.review_gates.map((gate) => `审查门：${formatHumanText(gate)}`),
     ].join('\n'))
-    setOneChange(template.protocol_defaults.one_change || '')
+    setOneChange(formatHumanText(template.protocol_defaults.one_change || ''))
   }
 
   return (
     <div className="grid-two">
-      <Panel title="Plan">
+      <Panel title="计划">
         <form className="form" onSubmit={(event) => { event.preventDefault(); createPlan.mutate() }}>
           <TextInput label="标题" value={planTitle} onChange={setPlanTitle} placeholder="本轮最小实验计划" />
-          <TextInput label="Hypothesis ID" value={planHypothesisId} onChange={setPlanHypothesisId} placeholder="可选：hypothesis_..." />
+          <TextInput label="假设标识" value={planHypothesisId} onChange={setPlanHypothesisId} placeholder="可选：假设记录标识" />
           <TextArea label="目标" value={planObjective} onChange={setPlanObjective} placeholder="要验证的机制、分数或现象" />
           <TextArea label="唯一变化" value={planOneChange} onChange={setPlanOneChange} placeholder="本轮只改变什么" />
-          <TextInput label="验证方式" value={planValidationMethod} onChange={setPlanValidationMethod} placeholder="benchmark_comparison / ablation / reproduction" />
+          <TextInput label="验证方式" value={planValidationMethod} onChange={setPlanValidationMethod} placeholder="评测对比、消融实验或复现实验" />
           <TextArea label="结果要求" value={planResultRequirements} onChange={setPlanResultRequirements} placeholder="每行一个结果要求" />
-          <Button type="submit" disabled={!planTitle || !planOneChange}>写入 Plan</Button>
+          <Button type="submit" disabled={!planTitle || !planOneChange}>写入计划</Button>
         </form>
       </Panel>
       <Panel title="方法模板">
@@ -269,7 +287,7 @@ export function MethodologyPage() {
               <article className="record-row" key={template.id}>
                 <div>
                   <div className="record-title">{templateTitleLabels[template.id] || template.title}</div>
-                  <div className="record-meta">{template.when_to_use}</div>
+                  <div className="record-meta">{formatHumanText(template.when_to_use)}</div>
                   <div className="record-meta">需要记录：{formatList(template.required_records)}</div>
                   <div className="record-meta">成果要求：{formatList(template.artifact_requirements)}</div>
                   <div className="record-meta">证据期望：{formatList(template.evidence_expectations)}</div>
@@ -280,8 +298,8 @@ export function MethodologyPage() {
             {methodTemplates.data.recommended_next_actions.map((action) => (
               <article className="record-row" key={`${action.endpoint}-${action.reason}`}>
                 <div>
-                  <div className="record-title">{action.endpoint}</div>
-                  <div className="record-meta">{action.reason}</div>
+                  <div className="record-title">建议动作</div>
+                  <div className="record-meta">{formatHumanText(action.reason)}</div>
                 </div>
                 <StatusBadge status={action.priority === 'high' ? 'blocked' : 'planned'} />
               </article>
@@ -298,7 +316,7 @@ export function MethodologyPage() {
       </Panel>
       <Panel title="研究问题">
         <form className="form" onSubmit={(event) => { event.preventDefault(); createQuestion.mutate() }}>
-          <TextInput label="计划 ID" value={programId} onChange={setProgramId} placeholder="可选，program_" />
+          <TextInput label="计划标识" value={programId} onChange={setProgramId} placeholder="可选：计划记录标识" />
           <TextArea label="问题" value={question} onChange={setQuestion} placeholder="必须能转成假设、协议和证据" />
           <Button type="submit" disabled={!question}>登记问题</Button>
         </form>
@@ -312,8 +330,8 @@ export function MethodologyPage() {
       </Panel>
       <Panel title="预注册协议">
         <form className="form" onSubmit={(event) => { event.preventDefault(); createProtocol.mutate() }}>
-          <TextInput label="问题 ID" value={questionId} onChange={setQuestionId} placeholder="question_" />
-          <TextInput label="方法 ID" value={methodId} onChange={setMethodId} placeholder="可选，method_" />
+          <TextInput label="问题标识" value={questionId} onChange={setQuestionId} placeholder="问题记录标识" />
+          <TextInput label="方法标识" value={methodId} onChange={setMethodId} placeholder="可选：方法记录标识" />
           <TextArea label="唯一变化" value={oneChange} onChange={setOneChange} placeholder="本轮只改变什么" />
           <Button type="submit" disabled={!questionId || !oneChange}>登记协议</Button>
         </form>
@@ -358,8 +376,8 @@ export function MethodologyPage() {
             {designAudit.data.recommended_next_actions.map((action) => (
               <article className="record-row" key={`${action.endpoint}-${action.reason}`}>
                 <div>
-                  <div className="record-title">{action.endpoint}</div>
-                  <div className="record-meta">{action.reason}</div>
+                  <div className="record-title">建议动作</div>
+                  <div className="record-meta">{formatHumanText(action.reason)}</div>
                 </div>
                 <StatusBadge status={action.priority === 'high' ? 'blocked' : 'planned'} />
               </article>
@@ -367,7 +385,7 @@ export function MethodologyPage() {
           </div>
         ) : null}
       </Panel>
-      <Panel title="Plan 列表"><RecordList items={plans.data?.items} /></Panel>
+      <Panel title="计划列表"><RecordList items={plans.data?.items} /></Panel>
       <Panel title="高级计划列表"><RecordList items={programs.data?.items} /></Panel>
       <Panel title="问题列表"><RecordList items={questions.data?.items} /></Panel>
       <Panel title="方法列表"><RecordList items={methods.data?.items} /></Panel>

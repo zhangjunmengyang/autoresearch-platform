@@ -34,16 +34,16 @@ export function SourcesPage() {
 
   return (
     <div className="grid-two">
-      <Panel title="Idea Pool">
+      <Panel title="想法池">
         <form className="form" onSubmit={(event) => { event.preventDefault(); create.mutate() }}>
           <SelectInput label="来源类型" value={kind} onChange={setKind} options={ideaKinds} />
-          <TextInput label="标题" value={title} onChange={setTitle} placeholder="论文、repo、评测缺口或研究员想法" />
-          <TextInput label="URI" value={uri} onChange={setUri} placeholder="可选：论文、仓库、数据集或外部结果地址" />
+          <TextInput label="标题" value={title} onChange={setTitle} placeholder="论文、代码仓库、评测缺口或研究员想法" />
+          <TextInput label="地址" value={uri} onChange={setUri} placeholder="可选：论文、仓库、数据集或外部结果地址" />
           <TextArea label="摘要" value={summary} onChange={setSummary} placeholder="保留可追溯摘要，不粘贴大文件原文" />
-          <Button type="submit" disabled={!title || create.isPending}>写入 Idea</Button>
+          <Button type="submit" disabled={!title || create.isPending}>写入想法</Button>
         </form>
       </Panel>
-      <Panel title="Idea 列表">
+      <Panel title="想法列表">
         <RecordList items={ideas.data?.items} />
       </Panel>
     </div>

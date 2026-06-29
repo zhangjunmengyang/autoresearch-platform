@@ -32,7 +32,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   })
   if (!response.ok) {
     const text = await response.text()
-    throw new Error(text || `Request failed: ${response.status}`)
+    throw new Error(text || `请求失败：${response.status}`)
   }
   return response.json() as Promise<T>
 }

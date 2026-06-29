@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Button, ErrorMessage, Panel, RecordList, SelectInput, StatusBadge, TextInput, WarningList } from '@/components/Primitives'
 import { getData, getListData, patchData, postData, type RecordItem } from '@/lib/api'
-import { formatKeyValueSummary, formatRefs } from '@/lib/display'
+import { formatHumanText, formatKeyValueSummary, formatRefs, labelTerm } from '@/lib/display'
 
 type BenchmarkAuditIssue = {
   code: string
@@ -85,12 +85,12 @@ const comparisonIssueLabels: Record<string, string> = {
 
 function formatIssueCounts(counts?: Record<string, number>, labels: Record<string, string> = issueLabels) {
   if (!counts || !Object.keys(counts).length) return '无缺口'
-  return Object.entries(counts).map(([key, value]) => `${labels[key] || key} ${value}`).join('，')
+  return Object.entries(counts).map(([key, value]) => `${labels[key] || labelTerm(key)} ${value}`).join('，')
 }
 
 function formatCountMap(counts?: Record<string, number>) {
   if (!counts || !Object.keys(counts).length) return '暂无'
-  return Object.entries(counts).map(([key, value]) => `${key} ${value}`).join('，')
+  return Object.entries(counts).map(([key, value]) => `${labelTerm(key)} ${value}`).join('，')
 }
 
 function formatScore(score?: number | null) {
@@ -101,33 +101,36 @@ export function BenchmarksPage() {
   const queryClient = useQueryClient()
   const [name, setName] = useState('')
   const [domain, setDomain] = useState('agent-memory')
-  const [adapter, setAdapter] = useState('external-runtime-adapter')
-  const [primaryMetric, setPrimaryMetric] = useState('score')
+  const [adapter, setAdapter] = useState('外部运行方适配器')
+  const [primaryMetric, setPrimaryMetric] = useState('分数')
   const [benchmarkId, setBenchmarkId] = useState('')
+  const metricKey = primaryMetric.trim() === '分数' ? 'score' : primaryMetric.trim()
+  const adapterName = adapter.trim() === '外部运行方适配器' ? 'external-runtime-adapter' : adapter.trim()
   const benchmarks = useQuery({ queryKey: ['benchmarks'], queryFn: () => getListData<RecordItem>('/api/v1/benchmarks') })
   const runs = useQuery({ queryKey: ['benchmark-runs'], queryFn: () => getListData<RecordItem>('/api/v1/benchmark-runs') })
   const suiteAudit = useQuery({ queryKey: ['benchmarks-audit'], queryFn: () => getData<BenchmarkAudit>('/api/v1/benchmarks/audit') })
   const comparisonBenchmarkId = benchmarkId || benchmarks.data?.items[0]?.id || ''
   const runComparison = useQuery({
-    queryKey: ['benchmark-run-comparison', comparisonBenchmarkId, primaryMetric],
+    queryKey: ['benchmark-run-comparison', comparisonBenchmarkId, metricKey],
     enabled: Boolean(comparisonBenchmarkId),
-    queryFn: () => getData<BenchmarkRunComparison>(`/api/v1/benchmark-runs/compare?benchmark_id=${encodeURIComponent(comparisonBenchmarkId)}&metric=${encodeURIComponent(primaryMetric || 'score')}`),
+    queryFn: () => getData<BenchmarkRunComparison>(`/api/v1/benchmark-runs/compare?benchmark_id=${encodeURIComponent(comparisonBenchmarkId)}&metric=${encodeURIComponent(metricKey || 'score')}`),
   })
   const createBenchmark = useMutation({
     mutationFn: () => postData('/api/v1/benchmarks', {
       name,
       domain,
-      metric_schema: { [primaryMetric || 'score']: { type: 'number', direction: 'higher_is_better' } },
+      metric_schema: { [metricKey || 'score']: { type: 'number', direction: 'higher_is_better' } },
       input_schema: { dataset_ref: 'artifact', config: 'object' },
       output_schema: { scores: 'object', artifact_refs: 'array', summary: 'string' },
       artifact_requirements: [
         { artifact_type: 'benchmark_result', required: true },
         { artifact_type: 'run_log', required: true },
       ],
-      external_runner: { adapter, runtime: 'external', entrypoint: 'runtime-owned' },
+      external_runner: { adapter: adapterName, runtime: 'external', entrypoint: 'runtime-owned' },
     }),
     onSuccess: () => {
       setName('')
+      setAdapter('外部运行方适配器')
       queryClient.invalidateQueries({ queryKey: ['benchmarks'] })
       queryClient.invalidateQueries({ queryKey: ['benchmarks-audit'] })
     },
@@ -142,7 +145,7 @@ export function BenchmarksPage() {
   const completeRun = useMutation({
     mutationFn: (id: string) => patchData(`/api/v1/benchmark-runs/${id}`, {
       status: 'completed',
-      scores: { [primaryMetric || 'score']: 0.8 },
+      scores: { [metricKey || 'score']: 0.8 },
       artifact_refs: [{ type: 'artifact', id: 'artifact_external_result_ref' }],
       provenance: { runner: 'frontend-demo' },
     }),
@@ -160,15 +163,15 @@ export function BenchmarksPage() {
       <Panel title="评测套件">
         <form className="form" onSubmit={(event) => { event.preventDefault(); createBenchmark.mutate() }}>
           <TextInput label="名称" value={name} onChange={setName} placeholder="长期记忆回忆 / 论文检索质量" />
-          <TextInput label="外部适配器" value={adapter} onChange={setAdapter} placeholder="由外部 Runtime 拥有" />
-          <TextInput label="主指标" value={primaryMetric} onChange={setPrimaryMetric} placeholder="score / recall / pass_rate" />
+          <TextInput label="外部适配器" value={adapter} onChange={setAdapter} placeholder="由外部运行方拥有" />
+          <TextInput label="主指标" value={primaryMetric} onChange={setPrimaryMetric} placeholder="分数、召回率或通过率" />
           <SelectInput
             label="领域"
             value={domain}
             onChange={setDomain}
             options={[
-              { value: 'agent-memory', label: 'Agent 记忆' },
-              { value: 'ai-for-science', label: 'AI for Science' },
+              { value: 'agent-memory', label: '智能体记忆' },
+              { value: 'ai-for-science', label: '智能科研' },
               { value: 'algorithm', label: '算法研究' },
               { value: 'general', label: '通用' },
             ]}
@@ -194,11 +197,11 @@ export function BenchmarksPage() {
                 <article className="record-row" key={item.id}>
                   <div>
                     <div className="record-title">{item.name}</div>
-                    <div className="record-meta">外部适配器 {item.contract_summary.external_runner || '未记录'}</div>
-                    <div className="record-meta">输入合同 {item.contract_summary.input_keys.join('，') || '未记录'}</div>
-                    <div className="record-meta">输出合同 {item.contract_summary.output_keys.join('，') || '未记录'}</div>
-                    <div className="record-meta">指标 {item.contract_summary.metric_keys.join('，') || '未记录'} · 成果要求 {item.contract_summary.artifact_requirement_count}</div>
-                    {item.issues.length ? <div className="record-meta">质量缺口 {item.issues.map((issue) => issueLabels[issue.code] || issue.message).join('；')}</div> : null}
+                    <div className="record-meta">外部适配器 {formatHumanText(item.contract_summary.external_runner || '未记录')}</div>
+                    <div className="record-meta">输入合同 {item.contract_summary.input_keys.map(labelTerm).join('，') || '未记录'}</div>
+                    <div className="record-meta">输出合同 {item.contract_summary.output_keys.map(labelTerm).join('，') || '未记录'}</div>
+                    <div className="record-meta">指标 {item.contract_summary.metric_keys.map(labelTerm).join('，') || '未记录'} · 成果要求 {item.contract_summary.artifact_requirement_count}</div>
+                    {item.issues.length ? <div className="record-meta">质量缺口 {item.issues.map((issue) => issueLabels[issue.code] || formatHumanText(issue.message)).join('；')}</div> : null}
                   </div>
                   <StatusBadge status={item.state} />
                 </article>
@@ -209,8 +212,8 @@ export function BenchmarksPage() {
                 {suiteAudit.data.recommended_next_actions.map((action) => (
                   <article className="record-row" key={`${action.endpoint}-${action.reason}`}>
                     <div>
-                      <div className="record-title">{action.endpoint}</div>
-                      <div className="record-meta">{action.reason}</div>
+                      <div className="record-title">建议动作</div>
+                      <div className="record-meta">{formatHumanText(action.reason)}</div>
                     </div>
                     <StatusBadge status={action.priority === 'high' ? 'blocked' : 'planned'} />
                   </article>
@@ -230,10 +233,10 @@ export function BenchmarksPage() {
                   <div className="record-title">最佳运行</div>
                   <div className="record-meta">
                     {runComparison.data.best_run
-                      ? `${runComparison.data.best_run.run_id} · ${runComparison.data.metric} ${formatScore(runComparison.data.best_run.score)}`
+                      ? `${runComparison.data.best_run.run_id} · ${labelTerm(runComparison.data.metric)} ${formatScore(runComparison.data.best_run.score)}`
                       : '暂无可比运行'}
                   </div>
-                  <div className="record-meta">方向 {runComparison.data.direction} · 总数 {runComparison.data.total}</div>
+                  <div className="record-meta">方向 {labelTerm(runComparison.data.direction)} · 总数 {runComparison.data.total}</div>
                 </div>
                 <StatusBadge status={runComparison.data.state} />
               </article>
@@ -262,7 +265,7 @@ export function BenchmarksPage() {
                   <div>
                     <div className="record-title">{run.run_id}</div>
                     <div className="record-meta">分数 {formatScore(run.score)} · 运行方 {run.runner || '未记录'} · 成果引用 {run.artifact_ref_count}</div>
-                    {run.issues.length ? <div className="record-meta">缺口 {run.issues.map((issue) => comparisonIssueLabels[issue.code] || issue.message).join('；')}</div> : null}
+                    {run.issues.length ? <div className="record-meta">缺口 {run.issues.map((issue) => comparisonIssueLabels[issue.code] || formatHumanText(issue.message)).join('；')}</div> : null}
                   </div>
                   <StatusBadge status={run.state} />
                 </article>
@@ -273,8 +276,8 @@ export function BenchmarksPage() {
                 {runComparison.data.recommended_next_actions.map((action) => (
                   <article className="record-row" key={`${action.endpoint}-${action.reason}`}>
                     <div>
-                      <div className="record-title">{action.endpoint}</div>
-                      <div className="record-meta">{action.reason}</div>
+                      <div className="record-title">建议动作</div>
+                      <div className="record-meta">{formatHumanText(action.reason)}</div>
                     </div>
                     <StatusBadge status={action.priority === 'high' ? 'blocked' : 'planned'} />
                   </article>
@@ -286,7 +289,7 @@ export function BenchmarksPage() {
       </Panel>
       <Panel title="运行记录">
         <form className="form" onSubmit={(event) => { event.preventDefault(); createRun.mutate() }}>
-          <TextInput label="评测 ID" value={benchmarkId} onChange={setBenchmarkId} placeholder="为空时使用第一个套件" />
+          <TextInput label="评测标识" value={benchmarkId} onChange={setBenchmarkId} placeholder="为空时使用第一个套件" />
           <Button type="submit" disabled={!benchmarkId && !benchmarks.data?.items[0]}>创建运行记录</Button>
         </form>
         <WarningList warnings={runWarnings} />

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { Panel, StatusBadge } from '@/components/Primitives'
 import { getData, getListData, type RecordItem } from '@/lib/api'
+import { formatTimestamp, labelTerm } from '@/lib/display'
 
 type SystemStatus = {
   status: string
@@ -25,25 +26,25 @@ type BenchmarkRun = RecordItem & {
 
 const runtimeStats = [
   {
-    label: 'FARS DEPLOYMENTS',
+    label: '自动研究部署',
     path: '/status',
     countKeys: ['sessions', 'research_rounds'],
-    copy: 'AI Runtime 的接入和运行实例。',
+    copy: '智能运行方的接入和运行实例。',
   },
   {
-    label: 'RESEARCH RUNS',
+    label: '研究运行',
     path: '/research',
     countKeys: ['sessions', 'research_rounds', 'experiments'],
     copy: '从计划到实验的研究运行。',
   },
   {
-    label: 'OUTPUTS',
+    label: '成果',
     path: '/artifacts',
     countKeys: ['artifacts', 'benchmark_runs'],
     copy: '报告、图表、分数和外部结果引用。',
   },
   {
-    label: 'REVIEW / DECISION',
+    label: '审查与决策',
     path: '/research',
     countKeys: ['evidence_records', 'reviews', 'decisions'],
     copy: '质量门、结论和下一轮方向。',
@@ -51,12 +52,12 @@ const runtimeStats = [
 ]
 
 const stageCards = [
-  { label: 'Ideation', countKeys: ['sources', 'insights', 'hypotheses'], copy: '想法和假设' },
-  { label: 'Planning', countKeys: ['research_questions', 'protocols'], copy: '计划和协议' },
-  { label: 'Experimentation', countKeys: ['sessions', 'research_rounds', 'experiments', 'benchmark_runs'], copy: '运行和 benchmark' },
-  { label: 'Writing', countKeys: ['artifacts'], copy: '论文、报告、日志' },
-  { label: 'Review', countKeys: ['evidence_records', 'reviews'], copy: '证据和审查' },
-  { label: 'Decision', countKeys: ['decisions', 'experiences'], copy: '决策和经验' },
+  { label: '构想', countKeys: ['sources', 'insights', 'hypotheses'], copy: '想法和假设' },
+  { label: '计划', countKeys: ['research_questions', 'protocols'], copy: '计划和协议' },
+  { label: '实验', countKeys: ['sessions', 'research_rounds', 'experiments', 'benchmark_runs'], copy: '运行和评测' },
+  { label: '写作', countKeys: ['artifacts'], copy: '论文、报告、日志' },
+  { label: '审查', countKeys: ['evidence_records', 'reviews'], copy: '证据和审查' },
+  { label: '决策', countKeys: ['decisions', 'experiences'], copy: '决策和经验' },
 ]
 
 const activeStatuses = new Set(['planned', 'queued', 'claimed', 'running'])
@@ -73,6 +74,12 @@ function firstNumericScore(scores?: Record<string, unknown>) {
 function scoreWidth(score: number) {
   const normalized = score <= 1 ? score * 100 : score
   return `${Math.max(4, Math.min(100, normalized))}%`
+}
+
+function formatStoreName(store?: string) {
+  if (store === 'json') return '本地文件'
+  if (store === 'postgres') return '关系数据库'
+  return store || '未知'
 }
 
 export function DashboardPage() {
@@ -97,29 +104,29 @@ export function DashboardPage() {
     <div className="stack">
       <section className="console-hero">
         <div>
-          <h2>FARS Runtime Console</h2>
+          <h2>全自动研究运行看板</h2>
           <p>
-            Ideation、Planning、Experimentation、Writing、Review 和 Decision 在这里保持可见。
-            Runtime 负责执行，平台只保存状态、引用和质量门。
+            构想、计划、实验、写作、审查和决策在这里保持可见。
+            智能运行方负责执行，平台只保存状态、引用和质量门。
           </p>
         </div>
         <div className="console-health">
           <div>
-            <span>API</span>
+            <span>接口</span>
             <StatusBadge status={status.data?.status === 'ok' ? 'ready' : status.data?.status} />
           </div>
           <div>
-            <span>Store</span>
-            <strong>{status.data?.store || 'unknown'}</strong>
+            <span>存储</span>
+            <strong>{formatStoreName(status.data?.store)}</strong>
           </div>
           <div>
-            <span>Loop</span>
-            <strong>{methodLoop.data?.safety?.executes_runtime === false ? 'control-plane' : 'unknown'}</strong>
+            <span>边界</span>
+            <strong>{methodLoop.data?.safety?.executes_runtime === false ? '控制面' : '未知'}</strong>
           </div>
         </div>
       </section>
 
-      <Panel title="FARS DEPLOYMENTS">
+      <Panel title="自动研究部署">
         <div className="dashboard-metrics">
           {runtimeStats.map((stat) => (
             <Link className="metric-card" to={stat.path} key={stat.label}>
@@ -132,7 +139,7 @@ export function DashboardPage() {
       </Panel>
 
       <div className="grid-two">
-        <Panel title="RESEARCH RUNS">
+        <Panel title="研究运行">
           <div className="detail-grid">
             <div><strong>{runItems.length}</strong><span>运行总数</span></div>
             <div><strong>{activeRuns}</strong><span>活跃或计划中</span></div>
@@ -143,18 +150,18 @@ export function DashboardPage() {
               <article className="record-row" key={run.id}>
                 <div>
                   <div className="record-title">{String(run.title || run.proposal || run.id)}</div>
-                  <div className="record-meta">{String(run.id)} · {String(run.created_at || 'time unknown')}</div>
+                  <div className="record-meta">{String(run.id)} · {formatTimestamp(run.created_at)}</div>
                 </div>
                 <StatusBadge status={typeof run.status === 'string' ? run.status : undefined} />
               </article>
             ))}
           </div>
-          {!runItems.length ? <div className="empty">暂无 research run。</div> : null}
+          {!runItems.length ? <div className="empty">暂无研究运行。</div> : null}
         </Panel>
 
-        <Panel title="SCORE PROGRESS">
+        <Panel title="分数进展">
           <div className="detail-grid">
-            <div><strong>{benchmarkRuns.data?.total || 0}</strong><span>benchmark run 数</span></div>
+            <div><strong>{benchmarkRuns.data?.total || 0}</strong><span>评测运行数</span></div>
             <div><strong>{scoredRuns.length}</strong><span>有数值分数</span></div>
             <div><strong>{completedRuns}</strong><span>已完成运行</span></div>
           </div>
@@ -163,7 +170,7 @@ export function DashboardPage() {
               <article className="score-row" key={run.id}>
                 <div>
                   <strong>{String(run.benchmark_id || run.id)}</strong>
-                  <span>{score.metric}: {score.score}</span>
+                  <span>{labelTerm(score.metric)}：{score.score}</span>
                 </div>
                 <div className="score-bar" aria-label={`${score.metric} ${score.score}`}>
                   <span style={{ width: scoreWidth(score.score) }} />
@@ -171,11 +178,11 @@ export function DashboardPage() {
               </article>
             ))}
           </div>
-          {!scoredRuns.length ? <div className="empty">等待外部 Runtime 回传 benchmark 结果。</div> : null}
+          {!scoredRuns.length ? <div className="empty">等待外部运行方回传评测结果。</div> : null}
         </Panel>
       </div>
 
-      <Panel title="PIPELINE">
+      <Panel title="研究流水线">
         <div className="pipeline-lane">
           {stageCards.map((stage) => (
             <div className="pipeline-stage" key={stage.label}>
@@ -185,7 +192,7 @@ export function DashboardPage() {
             </div>
           ))}
         </div>
-        <p className="panel-copy">{methodLoop.data?.loop || 'Idea Pool -> Hypothesis -> Plan -> Experiment -> Result -> Review -> Decision -> Lesson'}</p>
+        <p className="panel-copy">{'想法池 -> 假设 -> 计划 -> 实验 -> 结果 -> 审查 -> 决策 -> 经验'}</p>
       </Panel>
     </div>
   )

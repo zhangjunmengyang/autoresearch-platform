@@ -30,16 +30,16 @@ export function InsightsPage() {
 
   return (
     <div className="grid-two">
-      <Panel title="Hypothesis">
+      <Panel title="假设">
         <form className="form" onSubmit={(event) => { event.preventDefault(); createHypothesis.mutate() }}>
           <TextInput label="标题" value={title} onChange={setTitle} placeholder="本轮要验证的假设名称" />
           <TextArea label="假设" value={hypothesis} onChange={setHypothesis} placeholder="必须能被实验或评测验证" />
           <TextArea label="预期效应" value={expectedEffect} onChange={setExpectedEffect} placeholder="指标、现象或能力应如何变化" />
-          <TextInput label="Idea ID" value={ideaId} onChange={setIdeaId} placeholder="可选：idea_..." />
-          <Button type="submit" disabled={!title || !hypothesis}>写入 Hypothesis</Button>
+          <TextInput label="想法标识" value={ideaId} onChange={setIdeaId} placeholder="可选：想法记录标识" />
+          <Button type="submit" disabled={!title || !hypothesis}>写入假设</Button>
         </form>
       </Panel>
-      <Panel title="Hypothesis 列表">
+      <Panel title="假设列表">
         <RecordList items={hypotheses.data?.items} />
       </Panel>
     </div>

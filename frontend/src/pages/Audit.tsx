@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { ErrorMessage, Panel, RecordList, StatusBadge, TextInput } from '@/components/Primitives'
 import { getData, getListData, type RecordItem } from '@/lib/api'
-import { formatKeyValueSummary } from '@/lib/display'
+import { formatHumanText, formatKeyValueSummary, labelTerm } from '@/lib/display'
 
 type AuditExportBundle = {
   bundle_id: string
@@ -90,7 +90,7 @@ const sectionLabels: Record<string, string> = {
 function formatCounts(counts: Record<string, number>) {
   const entries = Object.entries(counts).filter(([, count]) => count > 0)
   if (!entries.length) return '暂无匹配记录'
-  return entries.map(([key, count]) => `${sectionLabels[key] || key} ${count}`).join('，')
+  return entries.map(([key, count]) => `${sectionLabels[key] || labelTerm(key)} ${count}`).join('，')
 }
 
 export function AuditPage() {
@@ -121,8 +121,8 @@ export function AuditPage() {
         <form className="form" onSubmit={(event) => event.preventDefault()}>
           <TextInput label="关键词" value={query} onChange={setQuery} placeholder="阻塞、实验假设、账本、结果摘要" />
           <TextInput label="证据主张" value={claim} onChange={setClaim} placeholder="可选：完整科研主张" />
-          <TextInput label="账本标识" value={sessionId} onChange={setSessionId} placeholder="可选：session_" />
-          <TextInput label="研究轮次" value={roundId} onChange={setRoundId} placeholder="可选：round_" />
+          <TextInput label="账本标识" value={sessionId} onChange={setSessionId} placeholder="可选：研究账本标识" />
+          <TextInput label="研究轮次" value={roundId} onChange={setRoundId} placeholder="可选：研究轮次标识" />
         </form>
         <div className="detail-grid">
           <div><strong>{events.data?.total || 0}</strong><span>过程事件</span></div>
@@ -132,7 +132,7 @@ export function AuditPage() {
       </Panel>
       <Panel title="说明">
         <p className="panel-copy">
-          过程审计用于跨账本恢复失败尝试、阻塞原因、工具运行、外部指令和实验结果。这里不执行实验，也不修改外部 Runtime 状态。
+          过程审计用于跨账本恢复失败尝试、阻塞原因、工具运行、外部指令和实验结果。这里不执行实验，也不修改外部运行状态。
         </p>
       </Panel>
       <Panel title="审计导出包">
@@ -142,7 +142,7 @@ export function AuditPage() {
               <div>
                 <div className="record-title">导出清单</div>
                 <div className="record-meta">导出包 {bundle.bundle_id}</div>
-                <div className="record-meta">结构版本 {bundle.manifest.schema}</div>
+                <div className="record-meta">结构合同 已生成</div>
                 <div className="record-meta">范围 {formatCounts(bundle.manifest.record_counts)}</div>
                 <div className="record-meta">成果引用 {bundle.integrity.included_artifact_refs.join('，') || '无'}</div>
               </div>
@@ -151,8 +151,8 @@ export function AuditPage() {
             <article className="record-row">
               <div>
                 <div className="record-title">质量门</div>
-                <div className="record-meta">成果审计 {bundle.artifact_audit.state} · 数量 {bundle.artifact_audit.total}</div>
-                <div className="record-meta">审查审计 {bundle.review_audit.state} · 数量 {bundle.review_audit.total}</div>
+                <div className="record-meta">成果审计 {labelTerm(bundle.artifact_audit.state)} · 数量 {bundle.artifact_audit.total}</div>
+                <div className="record-meta">审查审计 {labelTerm(bundle.review_audit.state)} · 数量 {bundle.review_audit.total}</div>
                 <div className="record-meta">外部读取 {bundle.integrity.external_reads ? '有' : '无'} · 外部写入 {bundle.integrity.external_writes ? '有' : '无'}</div>
               </div>
               <StatusBadge status={bundle.artifact_audit.state === 'ready' && bundle.review_audit.state === 'ready' ? 'completed' : 'degraded'} />
@@ -160,9 +160,9 @@ export function AuditPage() {
             <article className="record-row">
               <div>
                 <div className="record-title">复现交接包</div>
-                <div className="record-meta">结构版本 {bundle.reproducibility.schema}</div>
+                <div className="record-meta">结构合同 已生成</div>
                 <div className="record-meta">外部成果 {bundle.reproducibility.external_artifacts.length} · 平台读取 {bundle.reproducibility.external_artifacts.some((artifact) => artifact.platform_read) ? '有' : '无'}</div>
-                <div className="record-meta">安全边界 {bundle.reproducibility.safety}</div>
+                <div className="record-meta">安全边界 {formatHumanText(bundle.reproducibility.safety)}</div>
               </div>
               <StatusBadge status={bundle.reproducibility.state} />
             </article>
@@ -171,7 +171,7 @@ export function AuditPage() {
                 <div className="record-title">复现检查清单</div>
                 {bundle.reproducibility.checklist.map((check) => (
                   <div className="record-meta" key={check.id}>
-                    {check.label} · {check.status} · {check.detail}
+                    {formatHumanText(check.label)} · {labelTerm(check.status)} · {formatHumanText(check.detail)}
                   </div>
                 ))}
               </div>
@@ -181,7 +181,7 @@ export function AuditPage() {
                 <div className="record-title">外部成果验证</div>
                 {bundle.reproducibility.external_artifacts.length ? bundle.reproducibility.external_artifacts.map((artifact) => (
                   <div className="record-meta" key={artifact.id}>
-                    {artifact.title || artifact.id} · {artifact.uri || '无 URI'} · {artifact.requires_external_verification ? '需外部验证' : '无需外部验证'}
+                    {artifact.title || artifact.id} · {artifact.uri || '无地址'} · {artifact.requires_external_verification ? '需外部验证' : '无需外部验证'}
                   </div>
                 )) : <div className="record-meta">暂无外部成果引用</div>}
               </div>
@@ -190,7 +190,7 @@ export function AuditPage() {
               <div>
                 <div className="record-title">交接步骤</div>
                 {bundle.reproducibility.handoff_steps.map((step) => (
-                  <div className="record-meta" key={step}>{step}</div>
+                  <div className="record-meta" key={step}>{formatHumanText(step)}</div>
                 ))}
               </div>
             </article>
@@ -199,7 +199,7 @@ export function AuditPage() {
                 <div className="record-title">建议动作</div>
                 {bundle.recommended_next_actions.length ? bundle.recommended_next_actions.map((action) => (
                   <div className="record-meta" key={`${action.endpoint}-${action.reason}`}>
-                    {action.endpoint || action.action || '未记录'} · {action.reason || ''}
+                    {formatHumanText(action.reason || action.action || '未记录原因')}
                   </div>
                 )) : <div className="record-meta">暂无建议动作</div>}
               </div>
@@ -214,7 +214,7 @@ export function AuditPage() {
             <article className="record-row" key={event.id}>
               <div>
                 <div className="record-title">{String(event.title || event.event_type || event.id)}</div>
-                <div className="record-meta">类型 {String(event.event_type || '未记录')}</div>
+                <div className="record-meta">类型 {labelTerm(String(event.event_type || '未记录'))}</div>
                 <div className="record-meta">账本 {String(event.session_id || '未绑定')}</div>
                 <div className="record-meta">载荷摘要 {formatKeyValueSummary(event.payload)}</div>
               </div>
@@ -230,8 +230,8 @@ export function AuditPage() {
               <div>
                 <div className="record-title">{String(experiment.hypothesis || experiment.title || experiment.id)}</div>
                 <div className="record-meta">账本 {String(experiment.session_id || '未绑定')}</div>
-                <div className="record-meta">预期 {String(experiment.expected_effect || '')}</div>
-                <div className="record-meta">结果 {String(experiment.result_summary || '')}</div>
+                <div className="record-meta">预期 {formatHumanText(experiment.expected_effect || '')}</div>
+                <div className="record-meta">结果 {formatHumanText(experiment.result_summary || '')}</div>
               </div>
               <StatusBadge status={typeof experiment.status === 'string' ? experiment.status : undefined} />
             </article>

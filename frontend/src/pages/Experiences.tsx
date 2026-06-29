@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Button, ErrorMessage, Panel, RecordList, SelectInput, StatusBadge, TextArea, TextInput, WarningList } from '@/components/Primitives'
 import { getListData, postData, type RecordItem } from '@/lib/api'
+import { formatHumanText, labelRecordType, labelTerm } from '@/lib/display'
 
 type SourceTraceItem = {
   type?: string
@@ -45,7 +46,7 @@ const sourceRefTypes = [
   { value: 'evidence_record', label: '证据记录' },
   { value: 'review', label: '审查记录' },
   { value: 'decision', label: '决策记录' },
-  { value: 'source', label: 'Idea Pool' },
+  { value: 'source', label: '想法池' },
 ]
 
 const gapLabels: Record<string, string> = {
@@ -114,11 +115,11 @@ export function ExperiencesPage() {
           <TextInput label="标题" value={title} onChange={setTitle} />
           <TextArea label="问题和经验" value={problem} onChange={setProblem} />
           <SelectInput label="证据类型" value={sourceRefType} onChange={setSourceRefType} options={sourceRefTypes} />
-          <TextInput label="证据 ID" value={sourceRefId} onChange={setSourceRefId} placeholder="session_ / artifact_ / benchrun_" />
+          <TextInput label="证据标识" value={sourceRefId} onChange={setSourceRefId} placeholder="研究账本、成果或评测运行记录标识" />
           <Button type="button" disabled={!title} onClick={() => preview.mutate()}>预检</Button>
           <Button type="submit" disabled={!title || !problem || !sourceRefId}>写入</Button>
         </form>
-        <WarningList warnings={preview.data?.warnings} />
+        <WarningList warnings={preview.data?.warnings.map((warning) => formatHumanText(warning))} />
         <ErrorMessage message={preview.error?.message || apply.error?.message} />
         {previewData ? (
           <div className="record-list compact">
@@ -127,7 +128,7 @@ export function ExperiencesPage() {
                 <div className="record-title">来源追踪</div>
                 <div className="record-meta">已解析 {resolvedSources.length} · 未解析 {unresolvedSources.length}</div>
                 <div className="record-meta">
-                  覆盖 {Object.entries(previewData.source_trace?.coverage || {}).map(([type, count]) => `${type} ${count}`).join('，') || '暂无'}
+                  覆盖 {Object.entries(previewData.source_trace?.coverage || {}).map(([type, count]) => `${labelRecordType(type)} ${count}`).join('，') || '暂无'}
                 </div>
               </div>
               <StatusBadge status={previewData.accepted ? 'completed' : 'blocked'} />
@@ -135,17 +136,17 @@ export function ExperiencesPage() {
             {resolvedSources.map((source) => (
               <article className="record-row" key={`${source.type}-${source.id}`}>
                 <div>
-                  <div className="record-title">{source.type || '来源'} · {source.id || '未记录'}</div>
-                  <div className="record-meta">集合 {source.collection || '未记录'} · 状态 {source.status || '未记录'}</div>
-                  <div className="record-meta">摘要 {source.summary || '未记录'}</div>
+                  <div className="record-title">{source.type ? labelRecordType(source.type) : '来源'} · {source.id || '未记录'}</div>
+                  <div className="record-meta">集合 {labelTerm(source.collection)} · 状态 {labelTerm(source.status)}</div>
+                  <div className="record-meta">摘要 {formatHumanText(source.summary || '未记录')}</div>
                 </div>
               </article>
             ))}
             {unresolvedSources.map((source) => (
               <article className="record-row" key={`${source.type}-${source.id}-${source.reason}`}>
                 <div>
-                  <div className="record-title">{source.type || '来源'} · {source.id || '未记录'}</div>
-                  <div className="record-meta">未解析原因 {source.reason || '未记录'}</div>
+                  <div className="record-title">{source.type ? labelRecordType(source.type) : '来源'} · {source.id || '未记录'}</div>
+                  <div className="record-meta">未解析原因 {formatHumanText(source.reason || '未记录')}</div>
                 </div>
                 <StatusBadge status="blocked" />
               </article>
@@ -155,7 +156,7 @@ export function ExperiencesPage() {
                 <div className="record-title">治理缺口</div>
                 {governanceGaps.length ? governanceGaps.map((gap) => (
                   <div className="record-meta" key={`${gap.code}-${gap.severity}`}>
-                    {gapLabels[String(gap.code)] || gap.code || '缺口'} · {severityLabels[String(gap.severity)] || gap.severity || '未记录'} · {gap.message || ''}
+                    {gapLabels[String(gap.code)] || labelTerm(gap.code)} · {severityLabels[String(gap.severity)] || labelTerm(gap.severity)} · {formatHumanText(gap.message || '')}
                   </div>
                 )) : <div className="record-meta">暂无治理缺口</div>}
               </div>
@@ -165,7 +166,7 @@ export function ExperiencesPage() {
                 <div className="record-title">建议动作</div>
                 {recommendedActions.length ? recommendedActions.map((action) => (
                   <div className="record-meta" key={`${action.action}-${action.endpoint}`}>
-                    {action.endpoint || '未记录'} · {action.reason || action.action || ''}
+                    {formatHumanText(action.reason || action.action || '未记录原因')}
                   </div>
                 )) : <div className="record-meta">暂无建议动作</div>}
               </div>

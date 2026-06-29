@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Button, ErrorMessage, Panel, SelectInput, StatusBadge, TextArea, TextInput } from '@/components/Primitives'
 import { getData, getListData, postData, type RecordItem } from '@/lib/api'
+import { formatHumanText, labelRecordType, labelTerm } from '@/lib/display'
 
 type EvidenceSummary = {
   claim: string
@@ -124,7 +125,7 @@ const replicationActionLabels: Record<string, string> = {
 function formatCountMap(values?: Record<string, number>, labels?: Record<string, string>) {
   const entries = Object.entries(values || {})
   if (!entries.length) return '未记录'
-  return entries.map(([key, value]) => `${labels?.[key] || key} ${value}`).join('，')
+  return entries.map(([key, value]) => `${labels?.[key] || labelRecordType(key)} ${value}`).join('，')
 }
 
 export function EvidencePage() {
@@ -177,10 +178,10 @@ export function EvidencePage() {
         <form className="form" onSubmit={(event) => { event.preventDefault(); create.mutate() }}>
           <TextInput label="主张" value={claim} onChange={setClaim} placeholder="要支持、反证或复现的科研主张" />
           <SelectInput label="对象类型" value={subjectType} onChange={setSubjectType} options={subjectTypes} />
-          <TextInput label="对象标识" value={subjectId} onChange={setSubjectId} placeholder="hypothesis_ / experiment_ / source_" />
+          <TextInput label="对象标识" value={subjectId} onChange={setSubjectId} placeholder="假设、实验或资料记录标识" />
           <SelectInput label="证据立场" value={stance} onChange={setStance} options={stances} />
           <SelectInput label="证据类型" value={evidenceKind} onChange={setEvidenceKind} options={evidenceKinds} />
-          <TextInput label="证据标识" value={evidenceId} onChange={setEvidenceId} placeholder="benchrun_ / artifact_ / source_" />
+          <TextInput label="证据标识" value={evidenceId} onChange={setEvidenceId} placeholder="评测运行、成果或资料记录标识" />
           <SelectInput label="置信度" value={confidence} onChange={setConfidence} options={confidenceOptions} />
           <TextArea label="摘要" value={summary} onChange={setSummary} placeholder="证据如何支持或反驳主张，以及关键结果" />
           <TextInput label="限制" value={limitation} onChange={setLimitation} placeholder="可选：样本量、数据泄漏、外部效度等限制" />
@@ -195,9 +196,9 @@ export function EvidencePage() {
             <div className="record-list compact">
               <article className="record-row">
                 <div>
-                  <div className="record-title">{stateLabels[summaryData.state] || summaryData.state}</div>
+                  <div className="record-title">{stateLabels[summaryData.state] || labelTerm(summaryData.state)}</div>
                   <div className="record-meta">证据数量 {summaryData.total}</div>
-                  <div className="record-meta">建议动作 {actionLabels[summaryData.recommended_next_action] || summaryData.recommended_next_action}</div>
+                  <div className="record-meta">建议动作 {actionLabels[summaryData.recommended_next_action] || formatHumanText(summaryData.recommended_next_action)}</div>
                 </div>
                 <StatusBadge status={summaryData.state === 'supported' ? 'completed' : summaryData.state === 'contested' ? 'degraded' : 'blocked'} />
               </article>
@@ -205,10 +206,10 @@ export function EvidencePage() {
                 <div>
                   <div className="record-title">立场计数</div>
                   <div className="record-meta">
-                    {Object.entries(summaryData.stances).map(([key, value]) => `${stanceLabels[key] || key} ${value}`).join('，')}
+                    {Object.entries(summaryData.stances).map(([key, value]) => `${stanceLabels[key] || labelTerm(key)} ${value}`).join('，')}
                   </div>
                   <div className="record-meta">
-                    置信度 {Object.entries(summaryData.confidence).map(([key, value]) => `${confidenceLabels[key] || key} ${value}`).join('，') || '未记录'}
+                    置信度 {Object.entries(summaryData.confidence).map(([key, value]) => `${confidenceLabels[key] || labelTerm(key)} ${value}`).join('，') || '未记录'}
                   </div>
                 </div>
               </article>
@@ -224,7 +225,7 @@ export function EvidencePage() {
                   <div className="record-title">覆盖范围</div>
                   <div className="record-meta">证据类型 {formatCountMap(summaryData.coverage?.evidence_kinds)}</div>
                   <div className="record-meta">引用类型 {formatCountMap(summaryData.coverage?.evidence_ref_types)}</div>
-                  <div className="record-meta">Session {summaryData.coverage?.sessions?.join('，') || '未记录'}</div>
+                  <div className="record-meta">账本 {summaryData.coverage?.sessions?.join('，') || '未记录'}</div>
                   <div className="record-meta">对象 {summaryData.coverage?.subjects?.join('，') || '未绑定'}</div>
                 </div>
               </article>
@@ -233,7 +234,7 @@ export function EvidencePage() {
                   <div className="record-title">质量缺口</div>
                   {summaryData.quality_gaps?.length ? summaryData.quality_gaps.map((gap) => (
                     <div className="record-meta" key={`${gap.code || 'gap'}-${gap.severity || ''}`}>
-                      {qualityGapLabels[String(gap.code)] || gap.code || '缺口'} · 严重度 {severityLabels[String(gap.severity)] || gap.severity || '未记录'} · {gap.message || ''}
+                      {qualityGapLabels[String(gap.code)] || labelTerm(gap.code)} · 严重度 {severityLabels[String(gap.severity)] || labelTerm(gap.severity)} · {formatHumanText(gap.message || '')}
                       {gap.evidence_ids?.length ? ` · 证据 ${gap.evidence_ids.join('，')}` : ''}
                     </div>
                   )) : <div className="record-meta">暂无质量缺口</div>}
@@ -244,7 +245,7 @@ export function EvidencePage() {
                   <div className="record-title">复现计划</div>
                   {summaryData.replication_plan?.length ? summaryData.replication_plan.map((item) => (
                     <div className="record-meta" key={`${item.action || 'action'}-${item.endpoint || ''}`}>
-                      {replicationActionLabels[String(item.action)] || item.action || '动作'}，接口 {item.endpoint || '未记录'} · {item.reason || ''}
+                      {replicationActionLabels[String(item.action)] || formatHumanText(item.action || '动作')} · {formatHumanText(item.reason || '')}
                     </div>
                   )) : <div className="record-meta">暂无复现建议</div>}
                 </div>
@@ -269,12 +270,12 @@ export function EvidencePage() {
               <article className="record-row" key={evidenceRecord.id}>
                 <div>
                   <div className="record-title">{String(evidenceRecord.claim || evidenceRecord.id)}</div>
-                  <div className="record-meta">立场 {stanceLabels[String(evidenceRecord.stance)] || String(evidenceRecord.stance || '')}</div>
-                  <div className="record-meta">对象 {subject?.type || '未绑定'} · {subject?.id || '未记录'}</div>
-                  <div className="record-meta">证据 {evidenceRefs.map((ref) => `${ref.type || '证据'}:${ref.id || ''}`).join('，') || '未记录'}</div>
-                  <div className="record-meta">置信度 {quality?.confidence || '未记录'}</div>
-                  <div className="record-meta">摘要 {String(evidenceRecord.summary || '')}</div>
-                  {limitations.length ? <div className="record-meta">限制 {limitations.join('，')}</div> : null}
+                  <div className="record-meta">立场 {stanceLabels[String(evidenceRecord.stance)] || labelTerm(String(evidenceRecord.stance || ''))}</div>
+                  <div className="record-meta">对象 {subject?.type ? labelRecordType(subject.type) : '未绑定'} · {subject?.id || '未记录'}</div>
+                  <div className="record-meta">证据 {evidenceRefs.map((ref) => `${labelRecordType(ref.type)}：${ref.id || ''}`).join('，') || '未记录'}</div>
+                  <div className="record-meta">置信度 {confidenceLabels[String(quality?.confidence)] || '未记录'}</div>
+                  <div className="record-meta">摘要 {formatHumanText(evidenceRecord.summary || '')}</div>
+                  {limitations.length ? <div className="record-meta">限制 {limitations.map((item) => formatHumanText(item)).join('，')}</div> : null}
                 </div>
                 <StatusBadge status={typeof evidenceRecord.status === 'string' ? evidenceRecord.status : undefined} />
               </article>

@@ -67,13 +67,13 @@ for (const navPath of navPaths) {
   assert(allowedNavPaths.has(navPath), `unknown navigation path ${navPath}`)
 }
 
-for (const label of ['FARS 看板', 'Research Runs 运行', 'Outputs 成果', '能力目录', '系统状态']) {
+for (const label of ['自动研究看板', '研究运行', '成果', '能力目录', '系统状态']) {
   assert(pageConfig.includes(label), `missing nav label ${label}`)
 }
 
 const visibleNavLabels = [...pageConfig.matchAll(/label: '([^']+)'/g)].map((match) => match[1])
-assert.deepEqual(visibleNavLabels, ['FARS 看板', 'Research Runs 运行', 'Outputs 成果', '能力目录', '系统状态'], 'visible navigation should stay FARS observer-first')
-for (const hiddenResearchLabel of ['Idea Pool 想法池', 'Hypothesis 假设', 'Plan / Experiment 计划实验', 'Experiment 账本', 'Review / Decision 复盘决策', 'Lesson 经验', '评测登记', '审查事件', '决策记录']) {
+assert.deepEqual(visibleNavLabels, ['自动研究看板', '研究运行', '成果', '能力目录', '系统状态'], 'visible navigation should stay Chinese observer-first')
+for (const hiddenResearchLabel of ['FARS 看板', 'Research Runs 运行', 'Outputs 成果', 'Idea Pool 想法池', 'Hypothesis 假设', 'Plan / Experiment 计划实验', 'Experiment 账本', 'Review / Decision 复盘决策', 'Lesson 经验', '评测登记', '审查事件', '决策记录']) {
   assert(!visibleNavLabels.includes(hiddenResearchLabel), `form-first entry leaked into main nav: ${hiddenResearchLabel}`)
 }
 
@@ -86,16 +86,16 @@ for (const diagnosticPath of ['/research/context', '/research/readiness', '/rese
   assert(researchWorkbenchPage.includes(diagnosticPath), `research workbench should expose diagnostic path ${diagnosticPath}`)
 }
 
-for (const surfaceLabel of ['FARS DEPLOYMENTS', 'RESEARCH RUNS', 'OUTPUTS', 'PIPELINE SNAPSHOT', 'RUNTIME CONTRACT']) {
+for (const surfaceLabel of ['自动研究部署', '研究运行', '成果', '流水线快照', '运行合同']) {
   assert(researchWorkbenchPage.includes(surfaceLabel), `research workbench missing observer surface ${surfaceLabel}`)
 }
 
-for (const loopLabel of ['Ideation', 'Planning', 'Experimentation', 'Writing', 'Review', 'Decision']) {
-  assert(dashboardPage.includes(loopLabel), `dashboard missing FARS stage ${loopLabel}`)
-  assert(researchWorkbenchPage.includes(loopLabel), `research workbench missing FARS stage ${loopLabel}`)
+for (const loopLabel of ['构想', '计划', '实验', '写作', '审查', '决策']) {
+  assert(dashboardPage.includes(loopLabel), `dashboard missing Chinese stage ${loopLabel}`)
+  assert(researchWorkbenchPage.includes(loopLabel), `research workbench missing Chinese stage ${loopLabel}`)
 }
 
-for (const forbiddenVisibleTerm of ['写入', '登记', '创建', '人工', '账本', '评测登记']) {
+for (const forbiddenVisibleTerm of ['写入', '登记', '创建', '人工', '账本', '评测登记', 'FARS', 'Research Runs', 'Outputs', 'DEPLOYMENTS', 'PIPELINE', 'CONTRACT', 'Ideation', 'Planning', 'Experimentation', 'Writing', 'Review', 'Decision', 'Runtime', 'OpenAPI', 'REST']) {
   assert(!pageConfig.includes(forbiddenVisibleTerm), `form-first term leaked into visible nav: ${forbiddenVisibleTerm}`)
   assert(!dashboardPage.includes(forbiddenVisibleTerm), `form-first term leaked into dashboard: ${forbiddenVisibleTerm}`)
   assert(!researchWorkbenchPage.includes(forbiddenVisibleTerm), `form-first term leaked into research workbench: ${forbiddenVisibleTerm}`)
@@ -216,8 +216,8 @@ assert(statusPage.includes('认证与审计'), 'status page does not render secu
 assert(statusPage.includes('公开入口'), 'status page does not render public endpoints')
 assert(statusPage.includes('审计策略'), 'status page does not render audit policy')
 assert(capabilitiesPage.includes('/api/v1/agent/onboarding'), 'capabilities page does not query agent onboarding bundle')
-assert(capabilitiesPage.includes('Agent 接入自检'), 'capabilities page does not render agent onboarding status')
-assert(capabilitiesPage.includes('Skill 加载顺序'), 'capabilities page does not render skill loading order')
+assert(capabilitiesPage.includes('智能体接入自检'), 'capabilities page does not render agent onboarding status')
+assert(capabilitiesPage.includes('技能加载顺序'), 'capabilities page does not render skill loading order')
 assert(capabilitiesPage.includes('建议首批调用'), 'capabilities page does not render recommended first calls')
 assert(capabilitiesPage.includes('只读边界'), 'capabilities page does not render onboarding integrity boundary')
 

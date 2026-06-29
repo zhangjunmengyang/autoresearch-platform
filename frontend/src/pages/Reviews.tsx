@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Button, ErrorMessage, Panel, SelectInput, StatusBadge, TextArea, TextInput } from '@/components/Primitives'
 import { getData, getListData, postData, type RecordItem } from '@/lib/api'
+import { formatHumanText, labelRecordType, labelTerm } from '@/lib/display'
 
 type ReviewAuditIssue = {
   code?: string
@@ -72,7 +73,7 @@ const severityLabels: Record<string, string> = {
 function formatIssueCounts(counts: Record<string, number>) {
   const entries = Object.entries(counts)
   if (!entries.length) return '暂无质量缺口'
-  return entries.map(([code, count]) => `${issueLabels[code] || code} ${count}`).join('，')
+  return entries.map(([code, count]) => `${issueLabels[code] || labelTerm(code)} ${count}`).join('，')
 }
 
 export function ReviewsPage() {
@@ -82,7 +83,7 @@ export function ReviewsPage() {
   const [subjectId, setSubjectId] = useState('')
   const [evidenceType, setEvidenceType] = useState('evidence_record')
   const [evidenceId, setEvidenceId] = useState('')
-  const [reviewer, setReviewer] = useState('auto-critic')
+  const [reviewer, setReviewer] = useState('自动审查器')
   const [verdict, setVerdict] = useState('completed')
   const [score, setScore] = useState('80')
   const [comments, setComments] = useState('')
@@ -119,10 +120,10 @@ export function ReviewsPage() {
       <Panel title="创建审查">
         <form className="form" onSubmit={(event) => { event.preventDefault(); create.mutate() }}>
           <SelectInput label="对象类型" value={subjectType} onChange={setSubjectType} options={subjectTypes} />
-          <TextInput label="对象 ID" value={subjectId} onChange={setSubjectId} placeholder="benchrun_ / experiment_ / experience_" />
+          <TextInput label="对象标识" value={subjectId} onChange={setSubjectId} placeholder="评测运行、实验或经验记录标识" />
           <SelectInput label="证据类型" value={evidenceType} onChange={setEvidenceType} options={evidenceTypes} />
-          <TextInput label="证据 ID" value={evidenceId} onChange={setEvidenceId} placeholder="evidence_ / benchrun_ / artifact_" />
-          <TextInput label="审查者" value={reviewer} onChange={setReviewer} placeholder="auto-critic 或外部 Runtime 名称" />
+          <TextInput label="证据标识" value={evidenceId} onChange={setEvidenceId} placeholder="证据、评测运行或成果记录标识" />
+          <TextInput label="审查者" value={reviewer} onChange={setReviewer} placeholder="自动审查器或外部运行方名称" />
           <SelectInput label="结论" value={verdict} onChange={setVerdict} options={verdicts} />
           <TextInput label="分数" value={score} onChange={setScore} placeholder="0-100，可选" />
           <TextArea label="说明" value={comments} onChange={setComments} placeholder="证据是否充分、是否可复现、是否需要降级" />
@@ -132,7 +133,7 @@ export function ReviewsPage() {
       </Panel>
       <Panel title="审查质量门">
         <div className="form">
-          <TextInput label="审计查询" value={query} onChange={setQuery} placeholder="review、evidence、subject 或 reviewer" />
+          <TextInput label="审计查询" value={query} onChange={setQuery} placeholder="审查、证据、对象或审查者关键词" />
           {auditData ? (
             <div className="record-list compact">
               <article className="record-row">
@@ -147,11 +148,11 @@ export function ReviewsPage() {
               {(auditData.items || []).filter((item) => item.issues?.length).map((item) => (
                 <article className="record-row" key={item.review_id}>
                   <div>
-                    <div className="record-title">{item.subject?.type || '对象'} · {item.subject?.id || item.review_id}</div>
-                    <div className="record-meta">审查 {item.review_id || '未记录'} · 审查者 {item.reviewer?.id || item.reviewer?.kind || '未记录'}</div>
+                    <div className="record-title">{item.subject?.type ? labelRecordType(item.subject.type) : '对象'} · {item.subject?.id || item.review_id}</div>
+                    <div className="record-meta">审查 {item.review_id || '未记录'} · 审查者 {item.reviewer?.id || labelTerm(item.reviewer?.kind)}</div>
                     {(item.issues || []).map((issue) => (
                       <div className="record-meta" key={`${item.review_id}-${issue.code}`}>
-                        {issueLabels[String(issue.code)] || issue.code || '缺口'} · 严重度 {severityLabels[String(issue.severity)] || issue.severity || '未记录'} · {issue.message || ''}
+                        {issueLabels[String(issue.code)] || labelTerm(issue.code)} · 严重度 {severityLabels[String(issue.severity)] || labelTerm(issue.severity)} · {formatHumanText(issue.message || '')}
                       </div>
                     ))}
                   </div>
@@ -163,7 +164,7 @@ export function ReviewsPage() {
                   <div className="record-title">建议动作</div>
                   {auditData.recommended_next_actions.length ? auditData.recommended_next_actions.map((action) => (
                     <div className="record-meta" key={`${action.endpoint}-${action.reason}`}>
-                      {action.endpoint || '未记录'} · {action.reason || ''}
+                      {formatHumanText(action.reason || '未记录原因')}
                     </div>
                   )) : <div className="record-meta">暂无建议动作</div>}
                 </div>
@@ -184,11 +185,11 @@ export function ReviewsPage() {
             return (
               <article className="record-row" key={review.id}>
                 <div>
-                  <div className="record-title">{subject?.type || '对象'} · {subject?.id || review.id}</div>
-                  <div className="record-meta">审查者 {reviewerInfo?.id || reviewerInfo?.kind || '未记录'}</div>
-                  <div className="record-meta">证据 {evidenceRefs.map((ref) => `${ref.type || '证据'}:${ref.id || ''}`).join('，') || '未记录'}</div>
+                  <div className="record-title">{subject?.type ? labelRecordType(subject.type) : '对象'} · {subject?.id || review.id}</div>
+                  <div className="record-meta">审查者 {reviewerInfo?.id || labelTerm(reviewerInfo?.kind)}</div>
+                  <div className="record-meta">证据 {evidenceRefs.map((ref) => `${labelRecordType(ref.type)}：${ref.id || ''}`).join('，') || '未记录'}</div>
                   <div className="record-meta">分数 {String(review.score ?? '未记录')}</div>
-                  <div className="record-meta">说明 {String(review.comments || '')}</div>
+                  <div className="record-meta">说明 {formatHumanText(review.comments || '')}</div>
                 </div>
                 <StatusBadge status={typeof review.status === 'string' ? review.status : typeof review.verdict === 'string' ? review.verdict : undefined} />
               </article>

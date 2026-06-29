@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Button, ErrorMessage, Panel, RecordList, StatusBadge, TextArea, TextInput, WarningList } from '@/components/Primitives'
 import { getListData, patchData, postData, requestEnvelope, type RecordItem } from '@/lib/api'
-import { formatRefs, labelRecordType } from '@/lib/display'
+import { formatHumanText, formatRefs, labelRecordType, labelTerm } from '@/lib/display'
 
 type RoundWorktree = {
   path?: string
@@ -60,7 +60,7 @@ export function ResearchRoundsPage() {
   const [sessionId, setSessionId] = useState('')
   const [worktreePath, setWorktreePath] = useState('')
   const [branch, setBranch] = useState('')
-  const [baseRef, setBaseRef] = useState('main')
+  const [baseRef, setBaseRef] = useState('主线')
   const [commitSha, setCommitSha] = useState('')
   const rounds = useQuery({
     queryKey: ['research-rounds', query],
@@ -79,7 +79,7 @@ export function ResearchRoundsPage() {
       worktree: {
         path: worktreePath,
         branch,
-        base_ref: baseRef,
+        base_ref: baseRef.trim() === '主线' ? 'main' : baseRef,
       },
       status: 'running',
       runtime: { kind: 'external-runtime', id: 'workbench' },
@@ -90,7 +90,7 @@ export function ResearchRoundsPage() {
       setSessionId('')
       setWorktreePath('')
       setBranch('')
-      setBaseRef('main')
+      setBaseRef('主线')
       queryClient.invalidateQueries({ queryKey: ['research-rounds'] })
     },
   })
@@ -113,12 +113,12 @@ export function ResearchRoundsPage() {
     <div className="grid-two">
       <Panel title="研究轮次">
         <form className="form" onSubmit={(event) => { event.preventDefault(); create.mutate() }}>
-          <TextInput label="方案标题" value={title} onChange={setTitle} placeholder="例如：回放方案 A" />
+          <TextInput label="方案标题" value={title} onChange={setTitle} placeholder="例如：回放方案甲" />
           <TextArea label="方案说明" value={proposal} onChange={setProposal} placeholder="本轮要验证的唯一变化、预期收益和禁止范围" />
-          <TextInput label="账本标识" value={sessionId} onChange={setSessionId} placeholder="可选：session_" />
-          <TextInput label="工作树路径" value={worktreePath} onChange={setWorktreePath} placeholder="../worktrees/replay-a" />
-          <TextInput label="分支" value={branch} onChange={setBranch} placeholder="research/replay-a" />
-          <TextInput label="基线引用" value={baseRef} onChange={setBaseRef} placeholder="main" />
+          <TextInput label="账本标识" value={sessionId} onChange={setSessionId} placeholder="可选：研究账本标识" />
+          <TextInput label="工作树路径" value={worktreePath} onChange={setWorktreePath} placeholder="外部运行方工作树路径" />
+          <TextInput label="分支" value={branch} onChange={setBranch} placeholder="外部代码分支" />
+          <TextInput label="基线引用" value={baseRef} onChange={setBaseRef} placeholder="外部基线引用" />
           <Button type="submit" disabled={!title || !proposal}>登记轮次</Button>
         </form>
         <ErrorMessage message={create.error?.message} />
@@ -126,11 +126,11 @@ export function ResearchRoundsPage() {
 
       <Panel title="完成留痕">
         <form className="form" onSubmit={(event) => event.preventDefault()}>
-          <TextInput label="提交引用" value={commitSha} onChange={setCommitSha} placeholder="提交 SHA 或外部代码引用" />
+          <TextInput label="提交引用" value={commitSha} onChange={setCommitSha} placeholder="提交哈希或外部代码引用" />
           <TextInput label="筛选" value={query} onChange={setQuery} placeholder="方案、分支、提交、实验或证据关键词" />
         </form>
         <p className="panel-copy">
-          平台只保存工作树、分支、提交、实验、成果引用、证据和决策引用；创建工作树、提交代码和运行实验由外部运行时完成。
+          平台只保存工作树、分支、提交、实验、成果引用、证据和决策引用；创建工作树、提交代码和运行实验由外部运行方完成。
         </p>
         <ErrorMessage message={complete.error?.message} />
       </Panel>
@@ -152,8 +152,8 @@ export function ResearchRoundsPage() {
               <article className="record-row record-row-actions" key={round.id}>
                 <div>
                   <div className="record-title">{String(round.title || round.id)}</div>
-                  <div className="record-meta">方案 {String(round.proposal || '')}</div>
-                  <div className="record-meta">工作树 {worktree?.path || '未记录'} · 分支 {worktree?.branch || '未记录'} · 基线 {worktree?.base_ref || '未记录'}</div>
+                  <div className="record-meta">方案 {formatHumanText(round.proposal || '')}</div>
+                  <div className="record-meta">工作树 {worktree?.path || '未记录'} · 分支 {worktree?.branch || '未记录'} · 基线 {worktree?.base_ref ? labelTerm(worktree.base_ref) : '未记录'}</div>
                   <div className="record-meta">提交 {formatRefs(implementationRefs)}</div>
                   <div className="record-meta">实验 {formatRefs(experimentRefs)} · 证据 {formatRefs(evidenceRefs)}</div>
                 </div>
@@ -202,7 +202,7 @@ export function ResearchRoundsPage() {
                 <div className="record-title">未解析引用</div>
                 <div className="record-meta">
                   {detail.trace.unresolved_refs.length
-                    ? detail.trace.unresolved_refs.map((ref) => `${ref.field || '字段'}：${labelRecordType(ref.type)}：${ref.id || '缺少标识'}：${ref.reason || '未知原因'}`).join('，')
+                    ? detail.trace.unresolved_refs.map((ref) => `${labelTerm(ref.field)}：${labelRecordType(ref.type)}：${ref.id || '缺少标识'}：${formatHumanText(ref.reason || '未知原因')}`).join('，')
                     : '无'}
                 </div>
               </div>
@@ -213,7 +213,7 @@ export function ResearchRoundsPage() {
                 <div className="record-title">建议动作</div>
                 <div className="record-meta">
                   {detail.recommended_next_actions.length
-                    ? detail.recommended_next_actions.map((action) => `${action.action || '动作'} -> ${action.endpoint || '未记录接口'}`).join('，')
+                    ? detail.recommended_next_actions.map((action) => `${formatHumanText(action.action || '动作')}：${formatHumanText(action.reason || '未记录原因')}`).join('，')
                     : '暂无'}
                 </div>
               </div>
